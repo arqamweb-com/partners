@@ -15,8 +15,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase, ACCEPTED_UPLOADS, type UploadedFile } from "@/lib/api";
-import { logAudit } from "@/lib/audit";
+import { api, ACCEPTED_UPLOADS, MAX_UPLOAD_BYTES, type UploadedFile } from "@/lib/api";
 import { useCurrentUser } from "@/hooks/useAuth";
 import { useHolidays, useSettings } from "@/hooks/useSettings";
 import { DEFAULT_OUT_OF_SCOPE, FAST_TRACK_TERMS, type Project } from "@/lib/domain";
@@ -39,7 +38,6 @@ import {
   type IntakeField,
   type TypeDetails,
 } from "@/lib/project-types";
-import { seedProjectFromType } from "@/lib/seed-project";
 import { EmptyState } from "@/components/EmptyState";
 import { addBusinessDays, businessDaysBetween, formatDateAr } from "@/lib/business-days";
 import { cn } from "@/lib/utils";
@@ -137,7 +135,7 @@ function NewProject() {
   const { data: draft, isLoading } = useQuery({
     queryKey: ["project", draftId],
     queryFn: async () => {
-      const { data } = await supabase.from("projects").select("*").eq("id", draftId!).maybeSingle();
+      const data = await api.projects.get(draftId!);
       return data;
     },
     enabled: !!draftId && isAdmin,
@@ -301,7 +299,7 @@ function ProjectWizard({ initial, isAdmin }: { initial: Project | null; isAdmin:
   async function claimFiles(projectId: string) {
     const ids = collectFileIds(basics.project_type, intake);
     if (ids.length === 0) return;
-    await supabase.files.claim(projectId, ids).catch(() => undefined);
+    await api.files.claim(projectId, ids).catch(() => undefined);
   }
 
   /** البنود المستثناة كما تُحفظ: سطر لكل بند مُفعّل. */
@@ -313,18 +311,40 @@ function ProjectWizard({ initial, isAdmin }: { initial: Project | null; isAdmin:
   }
 
   /** بنود الميثاق التي يكتبها فريق أرقام (الخطوات 1-3). */
+  /** ما يملكه أي صاحب طلب: البيانات والمواصفات. */
+  function basicFields() {
+    return {
+      name: basics.name.trim().slice(0, 200),
+      end_client_name: basics.end_client_name.trim().slice(0, 200),
+      partner_agency: basics.partner_agency.trim().slice(0, 200),
+      owner_name: basics.owner_name.trim().slice(0, 200) || (me?.fullName ?? ""),
+      scope: scope.trim().slice(0, 8000),
+      out_of_scope: excludedList(),
+      type_details: details,
+      intake_data: intake,
+    };
+  }
+
+  /** البنود التعاقدية — مسار مستقل لأن صلاحيته للتسعير وحده. */
   function charterFields() {
     return {
       track: basics.fast_track ? ("fast_track" as const) : ("normal" as const),
       original_delivery_date: deliveryDate,
       revision_rounds_allowed: basics.fast_track ? 1 : schedule.rounds,
       warranty_days: schedule.warranty,
-      scope: scope.trim().slice(0, 8000),
-      out_of_scope: excludedList(),
       payment_milestones: milestones,
-      type_details: details,
-      intake_data: intake,
     };
+  }
+
+  /** المراحل بعد تعديل المعالج، بأسماء أعمدة السيرفر. */
+  function stagePlan() {
+    return stages.map((s) => ({
+      name: s.name,
+      gate_name: s.gate,
+      gate_size: s.gate_size,
+      our_duration_days: s.our,
+      their_duration_days: s.their,
+    }));
   }
 
   const create = useMutation({
@@ -332,92 +352,36 @@ function ProjectWizard({ initial, isAdmin }: { initial: Project | null; isAdmin:
       if (basics.name.trim().length < 3) throw new Error("اسم المشروع مطلوب.");
 
       // ---- مسار العميل: تسجيل طلب بالأساسيات فقط -------------------------
+      // السيرفر يجعله مسودة ولا يقبل منه مدة ولا تسعيرًا أصلًا
       if (basicsOnly) {
-        const { data: project, error } = await supabase
-          .from("projects")
-          .insert({
-            name: basics.name.trim().slice(0, 200),
-            end_client_name: basics.end_client_name.trim().slice(0, 200),
-            partner_agency: basics.partner_agency.trim().slice(0, 200),
-            owner_name: basics.owner_name.trim().slice(0, 200) || (me?.fullName ?? ""),
-            project_type: basics.project_type,
-            type_details: details,
-            scope: scope.trim().slice(0, 8000),
-            out_of_scope: excludedList(),
-            intake_data: intake,
-          })
-          .select()
-          .single();
-        if (error) throw error;
+        const project = await api.projects.create({
+          ...basicFields(),
+          project_type: basics.project_type,
+        });
 
         await claimFiles(project.id);
         return { id: project.id, submitted: true };
       }
 
-      // ---- مسار فريق أرقام: إنشاء مباشر أو اعتماد طلب --------------------
+      // ---- مسار فريق أرقام ------------------------------------------------
       let projectId: string;
 
       if (completing) {
         projectId = initial.id;
-        // البذر قبل تغيير الحالة: لو فشل يفضل المشروع طلبًا ويقدر الأدمن يعيد
-        // المحاولة، بدل ما يبقى «نشط» وهو بلا مراحل
-        await seedProjectFromType(projectId, basics.project_type, {
-          fastTrack: basics.fast_track,
-          details,
-          stages,
-        });
-
-        const { error } = await supabase
-          .from("projects")
-          .update({
-            name: basics.name.trim().slice(0, 200),
-            end_client_name: basics.end_client_name.trim().slice(0, 200),
-            partner_agency: basics.partner_agency.trim().slice(0, 200),
-            owner_name: basics.owner_name.trim().slice(0, 200) || (me?.fullName ?? ""),
-            project_type: basics.project_type,
-            status: "active",
-            ...charterFields(),
-          })
-          .eq("id", projectId);
-        if (error) throw error;
-
-        await claimFiles(projectId);
-        await logAudit(
-          projectId,
-          "project_approved",
-          `اعتماد طلب المشروع «${basics.name.trim()}» (${projectType(basics.project_type).label}) وبدء التنفيذ بتاريخ تسليم ${formatDateAr(deliveryDate)}.`,
-          me?.fullName,
-        );
+        await api.projects.update(projectId, basicFields());
       } else {
-        const { data: project, error } = await supabase
-          .from("projects")
-          .insert({
-            name: basics.name.trim().slice(0, 200),
-            end_client_name: basics.end_client_name.trim().slice(0, 200),
-            partner_agency: basics.partner_agency.trim().slice(0, 200),
-            owner_name: basics.owner_name.trim().slice(0, 200) || (me?.fullName ?? ""),
-            project_type: basics.project_type,
-            ...charterFields(),
-          })
-          .select()
-          .single();
-        if (error) throw error;
-        projectId = project.id;
-
-        await claimFiles(projectId);
-        await seedProjectFromType(projectId, basics.project_type, {
-          fastTrack: basics.fast_track,
-          details,
-          stages,
+        const project = await api.projects.create({
+          ...basicFields(),
+          project_type: basics.project_type,
         });
-
-        await logAudit(
-          projectId,
-          "project_created",
-          `إنشاء المشروع «${basics.name.trim()}» (${projectType(basics.project_type).label}) على ${basics.fast_track ? "المسار السريع" : "المسار العادي"} بتاريخ تسليم ${formatDateAr(deliveryDate)}، مع بذر المراحل ومسار الوصول وقائمة المحتوى.`,
-          me?.fullName,
-        );
+        projectId = project.id;
       }
+
+      // الميثاق ثم الاعتماد: الاعتماد يبذر المراحل والقوائم في معاملة
+      // واحدة بالسيرفر، فلا يبقى مشروع نصف مبذور لو انقطع الاتصال
+      await api.projects.updateCharter(projectId, charterFields());
+      await claimFiles(projectId);
+      await api.projects.approve(projectId, stagePlan());
 
       return { id: projectId, submitted: false };
     },
@@ -983,7 +947,7 @@ function FileField({
 
     for (const file of Array.from(list)) {
       try {
-        uploaded.push(await supabase.files.upload(file));
+        uploaded.push(await api.files.upload(file));
       } catch (e) {
         toast.error(e instanceof Error ? e.message : `تعذّر رفع «${file.name}».`);
       }
@@ -999,7 +963,7 @@ function FileField({
   async function remove(file: UploadedFile) {
     onChange(files.filter((f) => f.id !== file.id));
     // الحذف من السيرفر لا يوقف العمل لو فشل — الملف يبقى غير مرتبط بأي مشروع
-    await supabase.files.remove(file.id).catch(() => undefined);
+    await api.files.remove(file.id).catch(() => undefined);
   }
 
   return (

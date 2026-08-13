@@ -15,9 +15,14 @@ const Switch = React.forwardRef<
     {...props}
     ref={ref}
   >
+    {/*
+      translateX فيزيائي لا منطقي: لا ينقلب مع dir="rtl" كما تنقلب ms/me.
+      والواجهة كلها عربية، فالإبهام كان يخرج من السكّة إلى اليمين عند
+      التفعيل. المسافة نفسها إذن، والاتجاه يُقلب صراحةً في RTL.
+    */}
     <SwitchPrimitives.Thumb
       className={cn(
-        "pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-4 data-[state=unchecked]:translate-x-0",
+        "pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform data-[state=unchecked]:translate-x-0 data-[state=checked]:translate-x-4 rtl:data-[state=checked]:-translate-x-4",
       )}
     />
   </SwitchPrimitives.Root>

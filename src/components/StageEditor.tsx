@@ -6,8 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/lib/api";
-import { logAudit } from "@/lib/audit";
+import { api } from "@/lib/api";
 import type { Stage } from "@/lib/domain";
 import { Num } from "@/components/Num";
 
@@ -62,45 +61,18 @@ export function StageEditor({ projectId, stages }: { projectId: string; stages: 
       );
       if (lockedMoved) throw new Error("لا يمكن تغيير ترتيب مرحلة مقفولة.");
 
-      const keptIds = new Set(clean.map((r) => r.id).filter(Boolean));
-      const removed = sequential.filter((s) => !keptIds.has(s.id));
-
-      if (removed.some((s) => s.locked_at)) {
-        throw new Error("لا يمكن حذف مرحلة مقفولة.");
-      }
-
-      for (const s of removed) {
-        const { error } = await supabase.from("stages").delete().eq("id", s.id);
-        if (error) throw error;
-      }
-
-      for (const [i, r] of clean.entries()) {
-        if (r.locked) continue; // مقفولة: لا تُعدَّل إطلاقًا
-
-        const values = {
-          stage_index: i,
+      // الحذف والتعديل والإضافة وقواعد المقفولة كلها في السيرفر داخل
+      // معاملة واحدة — كانت هنا حلقتين بلا معاملة وفحصًا يعيش في المتصفح
+      await api.projects.saveStagePlan(
+        projectId,
+        clean.map((r) => ({
+          id: r.id || null,
           name: r.name.trim().slice(0, 200),
           gate_name: r.gate_name.trim() ? r.gate_name.trim().slice(0, 200) : null,
           gate_size: r.gate_size,
           our_duration_days: Math.max(0, r.our),
           their_duration_days: Math.max(0, r.their),
-        };
-
-        if (r.id) {
-          const { error } = await supabase.from("stages").update(values).eq("id", r.id);
-          if (error) throw error;
-        } else {
-          const { error } = await supabase
-            .from("stages")
-            .insert({ ...values, project_id: projectId, status: "pending", ball_in_court: "us" });
-          if (error) throw error;
-        }
-      }
-
-      await logAudit(
-        projectId,
-        "stages_edited",
-        `تعديل خطة المراحل: ${clean.length} مرحلة${removed.length > 0 ? ` (حُذفت ${removed.length})` : ""}.`,
+        })),
       );
     },
     onSuccess: () => {

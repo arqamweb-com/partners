@@ -41,3 +41,15 @@ api/config.php
 
 # نسخة الاستضافة المولّدة (npm run host)
 host
+
+# لارافيل
+backend/vendor
+backend/node_modules
+backend/.env
+backend/storage/*.key
+backend/storage/framework/cache/*
+backend/storage/framework/sessions/*
+backend/storage/framework/views/*
+backend/storage/logs/*
+backend/public/storage
+backend/.phpunit.result.cache

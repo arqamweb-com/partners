@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Workflow } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/lib/api";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,7 +24,7 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -32,8 +32,8 @@ function AuthPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/dashboard", replace: true });
+    api.auth.me().then((user) => {
+      if (user) navigate({ to: "/dashboard", replace: true });
     });
   }, [navigate]);
 
@@ -41,23 +41,26 @@ function AuthPage() {
     e.preventDefault();
     setBusy(true);
     try {
+      // النداءات ترمي ApiError برسالة عربية جاهزة للعرض
+      if (mode === "forgot") {
+        const { message } = await api.auth.forgotPassword(email);
+        toast.success(message);
+        setMode("signin");
+        return;
+      }
+
       if (mode === "signin") {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        navigate({ to: "/dashboard", replace: true });
+        await api.auth.login(email, password);
       } else {
-        const { data, error } = await supabase.auth.signUp({
+        // التسجيل الذاتي ينشئ حساب «عميل» دائمًا ويدخّله فورًا
+        await api.auth.register({
           email,
           password,
-          options: {
-            data: { full_name: fullName, agency_name: agency },
-          },
+          full_name: fullName,
+          agency_name: agency || null,
         });
-        if (error) throw error;
-        // لا يوجد تأكيد بريد بعد الانتقال لقاعدة البيانات المحلية: الحساب يعمل فورًا
-        if (data.session) navigate({ to: "/dashboard", replace: true });
-        else toast.success("تم إنشاء الحساب.");
       }
+      navigate({ to: "/dashboard", replace: true });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "تعذّر إتمام العملية.");
     } finally {
@@ -114,30 +117,51 @@ function AuthPage() {
               required
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">كلمة المرور</Label>
-            <Input
-              id="password"
-              type="password"
-              dir="ltr"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-            />
-          </div>
+          {mode !== "forgot" && (
+            <div className="space-y-2">
+              <Label htmlFor="password">كلمة المرور</Label>
+              <Input
+                id="password"
+                type="password"
+                dir="ltr"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                // نفس حد السيرفر: ثمانية أحرف
+                minLength={8}
+              />
+            </div>
+          )}
+
+          {mode === "forgot" && (
+            <p className="text-xs text-muted-foreground">
+              اكتب بريدك وهنبعتلك رابط تعيين كلمة مرور جديدة. الرابط صالح ساعة واحدة.
+            </p>
+          )}
 
           <Button type="submit" className="w-full" disabled={busy}>
-            {mode === "signin" ? "دخول" : "إنشاء الحساب"}
+            {mode === "signin" ? "دخول" : mode === "signup" ? "إنشاء الحساب" : "إرسال الرابط"}
           </Button>
 
-          <button
-            type="button"
-            className="w-full text-sm text-muted-foreground hover:text-foreground"
-            onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-          >
-            {mode === "signin" ? "ليس لديك حساب؟ إنشاء حساب جديد" : "لديك حساب؟ تسجيل الدخول"}
-          </button>
+          <div className="space-y-2">
+            <button
+              type="button"
+              className="w-full text-sm text-muted-foreground hover:text-foreground"
+              onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
+            >
+              {mode === "signin" ? "ليس لديك حساب؟ إنشاء حساب جديد" : "لديك حساب؟ تسجيل الدخول"}
+            </button>
+
+            {mode === "signin" && (
+              <button
+                type="button"
+                className="w-full text-sm text-muted-foreground hover:text-foreground"
+                onClick={() => setMode("forgot")}
+              >
+                نسيت كلمة المرور؟
+              </button>
+            )}
+          </div>
         </form>
       </div>
     </div>

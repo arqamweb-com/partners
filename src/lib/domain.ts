@@ -9,6 +9,8 @@ export type FeedbackItem = Tables<"feedback_items">;
 export type ChangeRequest = Tables<"change_requests">;
 export type AppSettings = Tables<"app_settings">;
 export type PriceItem = Tables<"cr_price_items">;
+export type AccessItem = Tables<"access_items">;
+export type ProjectMember = Tables<"project_members">;
 
 export const PROJECT_STATUS_AR: Record<string, string> = {
   draft: "طلب قيد المراجعة",

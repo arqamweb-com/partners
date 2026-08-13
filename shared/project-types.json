@@ -1,0 +1,1227 @@
+{
+  "default": "brochure",
+  "types": [
+    {
+      "id": "brochure",
+      "label": "موقع تعريفي",
+      "description": "موقع شركة أو صفحات تعريفية مع مدونة ونموذج تواصل. بدون متجر.",
+      "stages": [
+        {
+          "name": "اجتماع الاستلام",
+          "gate": "ميثاق موقَّع",
+          "gate_size": "small",
+          "our": 1,
+          "their": 2
+        },
+        {
+          "name": "النطاق والمتطلبات",
+          "gate": "Scope Lock",
+          "gate_size": "big",
+          "our": 3,
+          "their": 3
+        },
+        {
+          "name": "المحتوى والأصول",
+          "gate": "Content Lock",
+          "gate_size": "big",
+          "our": 0,
+          "their": 6
+        },
+        {
+          "name": "التسعير",
+          "gate": "Pricing Lock",
+          "gate_size": "big",
+          "our": 2,
+          "their": 3
+        },
+        {
+          "name": "التصميم",
+          "gate": "Design Lock",
+          "gate_size": "big",
+          "our": 6,
+          "their": 3
+        },
+        {
+          "name": "البرمجة والتطوير",
+          "gate": "Build Complete",
+          "gate_size": "small",
+          "our": 12,
+          "their": 0
+        },
+        {
+          "name": "الإطلاق والتسليم",
+          "gate": "Go Live",
+          "gate_size": "big",
+          "our": 2,
+          "their": 1
+        },
+        {
+          "name": "الضمان",
+          "gate": null,
+          "gate_size": "small",
+          "our": 14,
+          "their": 0
+        }
+      ],
+      "accessItems": [
+        {
+          "name": "الدومين",
+          "note": "اسم النطاق مسجّل وبيانات الدخول متاحة.",
+          "slow": false
+        },
+        {
+          "name": "صلاحية DNS",
+          "note": "وصول كامل لإدارة سجلات DNS.",
+          "slow": false
+        },
+        {
+          "name": "الاستضافة",
+          "note": "حساب الاستضافة أو خطة السيرفر جاهزة.",
+          "slow": false
+        },
+        {
+          "name": "SMTP",
+          "note": "بيانات إرسال البريد الرسمي للموقع.",
+          "slow": false
+        },
+        {
+          "name": "Google Analytics",
+          "note": "صلاحية محرر على الحساب.",
+          "slow": false
+        },
+        {
+          "name": "Meta Pixel",
+          "note": "صلاحية على مدير الأعمال.",
+          "slow": false
+        }
+      ],
+      "contentItems": [
+        {
+          "group": "blocking",
+          "name": "هيكل الصفحات",
+          "ac": "قائمة الصفحات النهائية مع ترتيبها"
+        },
+        {
+          "group": "blocking",
+          "name": "العناوين الرئيسية لكل صفحة",
+          "ac": "نصوص نهائية مُراجَعة، غير مترجمة آليًا"
+        },
+        {
+          "group": "blocking",
+          "name": "اللوجو",
+          "ac": "بصيغة AI أو SVG أو EPS. صيغة JPG بخلفية بيضاء مرفوضة"
+        },
+        {
+          "group": "blocking",
+          "name": "دليل الألوان والخطوط",
+          "ac": "أكواد الألوان وأسماء الخطوط"
+        },
+        {
+          "group": "blocking",
+          "name": "بيانات التواصل",
+          "ac": "عنوان، تليفونات، إيميل، حسابات التواصل، موقع الخريطة"
+        },
+        {
+          "group": "blocking",
+          "name": "الخدمات أو المنتجات الأساسية",
+          "ac": "الأسماء والأوصاف النهائية"
+        },
+        {
+          "group": "non_blocking",
+          "name": "الصور الفوتوغرافية",
+          "ac": "1500px عرض كحد أدنى، غير مأخوذة من واتساب"
+        },
+        {
+          "group": "non_blocking",
+          "name": "نصوص السياسات",
+          "ac": "الخصوصية والشروط، مخصصة للنشاط وغير منسوخة حرفيًا"
+        },
+        {
+          "group": "non_blocking",
+          "name": "تفاصيل ثانوية",
+          "ac": "أي محتوى إضافي غير حاكم"
+        }
+      ],
+      "detailFields": [
+        {
+          "key": "pages",
+          "label": "عدد الصفحات",
+          "type": "number",
+          "value": 8,
+          "hint": "الصفحات الثابتة فقط، بدون صفحات المدونة.",
+          "days": {
+            "stage": "البرمجة والتطوير",
+            "per": 1,
+            "unit": 4
+          }
+        },
+        {
+          "key": "languages",
+          "label": "عدد اللغات",
+          "type": "number",
+          "value": 1,
+          "activeAbove": 1,
+          "hint": "لغة واحدة تعني الموقع بالعربية فقط.",
+          "days": {
+            "stage": "البرمجة والتطوير",
+            "per": 4,
+            "unit": 1
+          },
+          "content": [
+            {
+              "group": "blocking",
+              "name": "ترجمة المحتوى",
+              "ac": "نص مترجم نهائي لكل صفحة ولكل لغة إضافية، مراجَع بشريًا"
+            }
+          ]
+        },
+        {
+          "key": "blog",
+          "label": "مدونة",
+          "type": "boolean",
+          "value": true,
+          "days": {
+            "stage": "البرمجة والتطوير",
+            "fixed": 2
+          },
+          "content": [
+            {
+              "group": "non_blocking",
+              "name": "تصنيفات المدونة وأول 3 مقالات",
+              "ac": "أسماء التصنيفات ونصوص المقالات الأولى"
+            }
+          ]
+        },
+        {
+          "key": "contact_form",
+          "label": "نموذج تواصل",
+          "type": "boolean",
+          "value": true
+        },
+        {
+          "key": "gallery",
+          "label": "معرض أعمال",
+          "type": "boolean",
+          "days": {
+            "stage": "البرمجة والتطوير",
+            "fixed": 2
+          },
+          "content": [
+            {
+              "group": "blocking",
+              "name": "صور ومحتوى معرض الأعمال",
+              "ac": "صور كل عمل مع اسم العميل ووصف مختصر"
+            }
+          ]
+        },
+        {
+          "key": "newsletter",
+          "label": "اشتراك النشرة البريدية",
+          "type": "boolean",
+          "access": [
+            {
+              "name": "خدمة النشرة البريدية",
+              "note": "حساب Mailchimp أو ما يعادله ومفاتيح الربط.",
+              "slow": false
+            }
+          ]
+        },
+        {
+          "key": "cms",
+          "label": "لوحة تحكم لإدارة المحتوى",
+          "type": "boolean",
+          "value": true
+        },
+        {
+          "key": "seo",
+          "label": "إعداد SEO أساسي",
+          "type": "boolean",
+          "value": true,
+          "hint": "عناوين ووصف وخريطة موقع. لا يشمل حملات أو تحسين مستمر."
+        }
+      ],
+      "intakeFields": [
+        {
+          "key": "services_files",
+          "label": "ملف الخدمات",
+          "type": "files",
+          "group": "محتوى الموقع",
+          "hint": "ملف يشرح كل خدمة باسمها ووصفها النهائي."
+        },
+        {
+          "key": "about_files",
+          "label": "ملف «من نحن» والرؤية",
+          "type": "files",
+          "group": "محتوى الموقع"
+        },
+        {
+          "key": "pages_list",
+          "label": "الصفحات المطلوبة",
+          "type": "textarea",
+          "group": "محتوى الموقع",
+          "hint": "صفحة في كل سطر.",
+          "placeholder": "الرئيسية\nمن نحن\nالخدمات\nتواصل معنا"
+        },
+        {
+          "key": "team_info",
+          "label": "فريق العمل (أسماء وصور ومناصب)",
+          "type": "textarea",
+          "group": "محتوى الموقع"
+        },
+        {
+          "key": "testimonials",
+          "label": "آراء العملاء أو شعارات الشركاء",
+          "type": "textarea",
+          "group": "محتوى الموقع"
+        }
+      ]
+    },
+    {
+      "id": "woocommerce",
+      "label": "متجر WooCommerce",
+      "description": "ووردبريس ووكومرس: منتجات وسلة ودفع وشحن. بوابة الدفع تحتاج بدءًا مبكرًا.",
+      "stages": [
+        {
+          "name": "اجتماع الاستلام",
+          "gate": "ميثاق موقَّع",
+          "gate_size": "small",
+          "our": 1,
+          "their": 2
+        },
+        {
+          "name": "النطاق والمتطلبات",
+          "gate": "Scope Lock",
+          "gate_size": "big",
+          "our": 3,
+          "their": 3
+        },
+        {
+          "name": "المحتوى والأصول",
+          "gate": "Content Lock",
+          "gate_size": "big",
+          "our": 0,
+          "their": 6
+        },
+        {
+          "name": "التسعير",
+          "gate": "Pricing Lock",
+          "gate_size": "big",
+          "our": 2,
+          "their": 3
+        },
+        {
+          "name": "التصميم",
+          "gate": "Design Lock",
+          "gate_size": "big",
+          "our": 6,
+          "their": 3
+        },
+        {
+          "name": "إعداد المتجر والمنتجات",
+          "gate": "Store Setup Lock",
+          "gate_size": "big",
+          "our": 5,
+          "their": 7
+        },
+        {
+          "name": "البرمجة والتطوير",
+          "gate": "Build Complete",
+          "gate_size": "small",
+          "our": 12,
+          "their": 0
+        },
+        {
+          "name": "الإطلاق والتسليم",
+          "gate": "Go Live",
+          "gate_size": "big",
+          "our": 2,
+          "their": 1
+        },
+        {
+          "name": "الضمان",
+          "gate": null,
+          "gate_size": "small",
+          "our": 14,
+          "their": 0
+        }
+      ],
+      "accessItems": [
+        {
+          "name": "الدومين",
+          "note": "اسم النطاق مسجّل وبيانات الدخول متاحة.",
+          "slow": false
+        },
+        {
+          "name": "صلاحية DNS",
+          "note": "وصول كامل لإدارة سجلات DNS.",
+          "slow": false
+        },
+        {
+          "name": "الاستضافة",
+          "note": "حساب الاستضافة أو خطة السيرفر جاهزة.",
+          "slow": false
+        },
+        {
+          "name": "بوابة الدفع",
+          "note": "تستغرق عادة من 3 إلى 6 أسابيع — يجب البدء فيها من اليوم الأول.",
+          "slow": true
+        },
+        {
+          "name": "شركة الشحن",
+          "note": "العقد ومفاتيح الربط مع شركة الشحن.",
+          "slow": false
+        },
+        {
+          "name": "SMTP",
+          "note": "بيانات إرسال البريد الرسمي للموقع.",
+          "slow": false
+        },
+        {
+          "name": "Google Analytics",
+          "note": "صلاحية محرر على الحساب.",
+          "slow": false
+        },
+        {
+          "name": "Meta Pixel",
+          "note": "صلاحية على مدير الأعمال.",
+          "slow": false
+        }
+      ],
+      "contentItems": [
+        {
+          "group": "blocking",
+          "name": "هيكل الصفحات",
+          "ac": "قائمة الصفحات النهائية مع ترتيبها"
+        },
+        {
+          "group": "blocking",
+          "name": "العناوين الرئيسية لكل صفحة",
+          "ac": "نصوص نهائية مُراجَعة، غير مترجمة آليًا"
+        },
+        {
+          "group": "blocking",
+          "name": "اللوجو",
+          "ac": "بصيغة AI أو SVG أو EPS. صيغة JPG بخلفية بيضاء مرفوضة"
+        },
+        {
+          "group": "blocking",
+          "name": "دليل الألوان والخطوط",
+          "ac": "أكواد الألوان وأسماء الخطوط"
+        },
+        {
+          "group": "blocking",
+          "name": "بيانات التواصل",
+          "ac": "عنوان، تليفونات، إيميل، حسابات التواصل، موقع الخريطة"
+        },
+        {
+          "group": "blocking",
+          "name": "الخدمات أو المنتجات الأساسية",
+          "ac": "الأسماء والأوصاف النهائية"
+        },
+        {
+          "group": "non_blocking",
+          "name": "الصور الفوتوغرافية",
+          "ac": "1500px عرض كحد أدنى، غير مأخوذة من واتساب"
+        },
+        {
+          "group": "non_blocking",
+          "name": "نصوص السياسات",
+          "ac": "الخصوصية والشروط، مخصصة للنشاط وغير منسوخة حرفيًا"
+        },
+        {
+          "group": "non_blocking",
+          "name": "تفاصيل ثانوية",
+          "ac": "أي محتوى إضافي غير حاكم"
+        },
+        {
+          "group": "blocking",
+          "name": "ملف المنتجات",
+          "ac": "ملف Excel أو CSV فيه الاسم والوصف والسعر والوزن وأكواد المنتجات"
+        },
+        {
+          "group": "blocking",
+          "name": "صور المنتجات",
+          "ac": "صورة رئيسية لكل منتج على الأقل، خلفية موحّدة، 1000px عرض كحد أدنى"
+        },
+        {
+          "group": "blocking",
+          "name": "سياسة الشحن والاسترجاع",
+          "ac": "مناطق الشحن وتكلفتها ومدة التوصيل وشروط الاسترجاع"
+        },
+        {
+          "group": "non_blocking",
+          "name": "أكواد الخصم",
+          "ac": "قائمة الأكواد ونسب الخصم وتواريخ الصلاحية"
+        }
+      ],
+      "detailFields": [
+        {
+          "key": "products",
+          "label": "عدد المنتجات",
+          "type": "number",
+          "value": 50,
+          "hint": "العدد التقريبي عند الإطلاق. الإدخال على العميل ما لم يُتفق غير ذلك.",
+          "days": {
+            "stage": "إعداد المتجر والمنتجات",
+            "per": 1,
+            "unit": 50
+          }
+        },
+        {
+          "key": "products_entry",
+          "label": "إضافة المنتجات على الموقع",
+          "type": "select",
+          "value": "من خلالكم",
+          "options": [
+            "من خلالكم",
+            "من خلال فريق أرقام ويب"
+          ],
+          "hint": "«من خلالكم» تعني أن إدخال المنتجات على العميل. اختيار فريق أرقام ويب يضيف مدة إدخال على المرحلة.",
+          "days": {
+            "stage": "إعداد المتجر والمنتجات",
+            "per": 1,
+            "unit": 50,
+            "onlyIf": "من خلال فريق أرقام ويب",
+            "countFrom": "products"
+          }
+        },
+        {
+          "key": "variations",
+          "label": "منتجات بمتغيرات (مقاس / لون)",
+          "type": "boolean",
+          "days": {
+            "stage": "إعداد المتجر والمنتجات",
+            "fixed": 3
+          },
+          "content": [
+            {
+              "group": "blocking",
+              "name": "جدول المتغيرات والأسعار",
+              "ac": "لكل منتج: المقاسات والألوان والسعر والكمية وكود المنتج"
+            }
+          ]
+        },
+        {
+          "key": "pay_online",
+          "label": "دفع أونلاين (بطاقات / مدى)",
+          "type": "boolean",
+          "value": true,
+          "hint": "بوابة الدفع تستغرق 3–6 أسابيع للاعتماد — تُبدأ من اليوم الأول.",
+          "days": {
+            "stage": "إعداد المتجر والمنتجات",
+            "fixed": 3
+          },
+          "access": [
+            {
+              "name": "بوابة الدفع",
+              "note": "تستغرق عادة من 3 إلى 6 أسابيع — يجب البدء فيها من اليوم الأول.",
+              "slow": true
+            }
+          ],
+          "content": [
+            {
+              "group": "blocking",
+              "name": "السجل التجاري وبيانات المنشأة",
+              "ac": "المستندات المطلوبة لفتح حساب بوابة الدفع"
+            }
+          ]
+        },
+        {
+          "key": "pay_cod",
+          "label": "الدفع عند الاستلام",
+          "type": "boolean",
+          "value": true
+        },
+        {
+          "key": "shipping",
+          "label": "ربط شركة شحن",
+          "type": "boolean",
+          "days": {
+            "stage": "إعداد المتجر والمنتجات",
+            "fixed": 2
+          },
+          "access": [
+            {
+              "name": "شركة الشحن",
+              "note": "العقد ومفاتيح الربط مع شركة الشحن.",
+              "slow": false
+            }
+          ],
+          "content": [
+            {
+              "group": "blocking",
+              "name": "سياسة الشحن والاسترجاع",
+              "ac": "مناطق الشحن وتكلفتها ومدة التوصيل وشروط الاسترجاع"
+            }
+          ]
+        },
+        {
+          "key": "coupons",
+          "label": "كوبونات خصم",
+          "type": "boolean",
+          "value": true
+        },
+        {
+          "key": "accounts",
+          "label": "حسابات العملاء وتتبع الطلبات",
+          "type": "boolean",
+          "value": true
+        },
+        {
+          "key": "multi_lang",
+          "label": "متجر متعدد اللغات",
+          "type": "boolean",
+          "days": {
+            "stage": "إعداد المتجر والمنتجات",
+            "fixed": 5
+          },
+          "content": [
+            {
+              "group": "blocking",
+              "name": "ترجمة أسماء ووصف المنتجات",
+              "ac": "ملف يقابل كل منتج بترجمته النهائية"
+            }
+          ]
+        },
+        {
+          "key": "multi_currency",
+          "label": "متعدد العملات",
+          "type": "boolean",
+          "days": {
+            "stage": "إعداد المتجر والمنتجات",
+            "fixed": 2
+          }
+        },
+        {
+          "key": "erp",
+          "label": "ربط نظام مخزون أو ERP",
+          "type": "boolean",
+          "days": {
+            "stage": "البرمجة والتطوير",
+            "fixed": 6
+          },
+          "access": [
+            {
+              "name": "واجهة نظام المخزون",
+              "note": "توثيق الـ API ومفاتيح الربط من مزوّد النظام.",
+              "slow": true
+            }
+          ]
+        }
+      ],
+      "intakeFields": [
+        {
+          "key": "products_file",
+          "label": "ملف المنتجات (Excel / CSV)",
+          "type": "file",
+          "group": "بيانات المتجر",
+          "hint": "لكل منتج: الاسم والوصف والسعر والوزن وكود المنتج."
+        },
+        {
+          "key": "product_images_files",
+          "label": "صور المنتجات",
+          "type": "files",
+          "group": "بيانات المتجر",
+          "hint": "صورة رئيسية لكل منتج على الأقل، 1000px عرض كحد أدنى. الملفات الكثيرة تُرفع مضغوطة ZIP."
+        },
+        {
+          "key": "categories_list",
+          "label": "تصنيفات المنتجات",
+          "type": "textarea",
+          "group": "بيانات المتجر",
+          "hint": "تصنيف في كل سطر، مع التصنيفات الفرعية إن وُجدت."
+        },
+        {
+          "key": "shipping_policy",
+          "label": "سياسة الشحن",
+          "type": "textarea",
+          "group": "سياسات المتجر",
+          "hint": "مناطق الشحن وتكلفتها ومدة التوصيل."
+        },
+        {
+          "key": "return_policy",
+          "label": "سياسة الاسترجاع والاستبدال",
+          "type": "textarea",
+          "group": "سياسات المتجر"
+        },
+        {
+          "key": "id_card_files",
+          "label": "بطاقة الهوية",
+          "type": "files",
+          "group": "سياسات المتجر",
+          "hint": "اختياري — صورة بطاقة صاحب النشاط، من مستندات فتح حساب بوابة الدفع."
+        },
+        {
+          "key": "commercial_record_files",
+          "label": "السجل التجاري وبيانات المنشأة",
+          "type": "files",
+          "group": "سياسات المتجر",
+          "hint": "اختياري — مطلوب لفتح حساب بوابة الدفع."
+        },
+        {
+          "key": "tax_card_files",
+          "label": "البطاقة الضريبية",
+          "type": "files",
+          "group": "سياسات المتجر",
+          "hint": "اختياري — من مستندات فتح حساب بوابة الدفع."
+        }
+      ]
+    },
+    {
+      "id": "laravel",
+      "label": "تطبيق Laravel مخصص",
+      "description": "نظام مبني من الأول: لوحة تحكم وصلاحيات وتكاملات. يبدأ بتحليل متطلبات.",
+      "stages": [
+        {
+          "name": "اجتماع الاستلام",
+          "gate": "ميثاق موقَّع",
+          "gate_size": "small",
+          "our": 1,
+          "their": 2
+        },
+        {
+          "name": "تحليل المتطلبات",
+          "gate": "Requirements Lock",
+          "gate_size": "big",
+          "our": 5,
+          "their": 4
+        },
+        {
+          "name": "النطاق والمتطلبات",
+          "gate": "Scope Lock",
+          "gate_size": "big",
+          "our": 3,
+          "their": 3
+        },
+        {
+          "name": "المحتوى والأصول",
+          "gate": "Content Lock",
+          "gate_size": "big",
+          "our": 0,
+          "their": 6
+        },
+        {
+          "name": "التسعير",
+          "gate": "Pricing Lock",
+          "gate_size": "big",
+          "our": 2,
+          "their": 3
+        },
+        {
+          "name": "التصميم",
+          "gate": "Design Lock",
+          "gate_size": "big",
+          "our": 6,
+          "their": 3
+        },
+        {
+          "name": "البرمجة والتطوير",
+          "gate": "Build Complete",
+          "gate_size": "small",
+          "our": 12,
+          "their": 0
+        },
+        {
+          "name": "اختبار القبول الفني",
+          "gate": "QA Sign-off",
+          "gate_size": "big",
+          "our": 4,
+          "their": 2
+        },
+        {
+          "name": "الإطلاق والتسليم",
+          "gate": "Go Live",
+          "gate_size": "big",
+          "our": 2,
+          "their": 1
+        },
+        {
+          "name": "الضمان",
+          "gate": null,
+          "gate_size": "small",
+          "our": 14,
+          "their": 0
+        }
+      ],
+      "accessItems": [
+        {
+          "name": "الدومين",
+          "note": "اسم النطاق مسجّل وبيانات الدخول متاحة.",
+          "slow": false
+        },
+        {
+          "name": "صلاحية DNS",
+          "note": "وصول كامل لإدارة سجلات DNS.",
+          "slow": false
+        },
+        {
+          "name": "الاستضافة",
+          "note": "حساب الاستضافة أو خطة السيرفر جاهزة.",
+          "slow": false
+        },
+        {
+          "name": "بوابة الدفع",
+          "note": "تستغرق عادة من 3 إلى 6 أسابيع — يجب البدء فيها من اليوم الأول.",
+          "slow": true
+        },
+        {
+          "name": "شركة الشحن",
+          "note": "العقد ومفاتيح الربط مع شركة الشحن.",
+          "slow": false
+        },
+        {
+          "name": "SMTP",
+          "note": "بيانات إرسال البريد الرسمي للموقع.",
+          "slow": false
+        },
+        {
+          "name": "Google Analytics",
+          "note": "صلاحية محرر على الحساب.",
+          "slow": false
+        },
+        {
+          "name": "Meta Pixel",
+          "note": "صلاحية على مدير الأعمال.",
+          "slow": false
+        },
+        {
+          "name": "بيانات السيرفر",
+          "note": "وصول SSH وقاعدة البيانات وبيئة النشر.",
+          "slow": false
+        },
+        {
+          "name": "الأنظمة المراد الربط بها",
+          "note": "توثيق واجهات الأنظمة الخارجية ومفاتيحها.",
+          "slow": true
+        }
+      ],
+      "contentItems": [
+        {
+          "group": "blocking",
+          "name": "هيكل الصفحات",
+          "ac": "قائمة الصفحات النهائية مع ترتيبها"
+        },
+        {
+          "group": "blocking",
+          "name": "العناوين الرئيسية لكل صفحة",
+          "ac": "نصوص نهائية مُراجَعة، غير مترجمة آليًا"
+        },
+        {
+          "group": "blocking",
+          "name": "اللوجو",
+          "ac": "بصيغة AI أو SVG أو EPS. صيغة JPG بخلفية بيضاء مرفوضة"
+        },
+        {
+          "group": "blocking",
+          "name": "دليل الألوان والخطوط",
+          "ac": "أكواد الألوان وأسماء الخطوط"
+        },
+        {
+          "group": "blocking",
+          "name": "بيانات التواصل",
+          "ac": "عنوان، تليفونات، إيميل، حسابات التواصل، موقع الخريطة"
+        },
+        {
+          "group": "blocking",
+          "name": "الخدمات أو المنتجات الأساسية",
+          "ac": "الأسماء والأوصاف النهائية"
+        },
+        {
+          "group": "non_blocking",
+          "name": "الصور الفوتوغرافية",
+          "ac": "1500px عرض كحد أدنى، غير مأخوذة من واتساب"
+        },
+        {
+          "group": "non_blocking",
+          "name": "نصوص السياسات",
+          "ac": "الخصوصية والشروط، مخصصة للنشاط وغير منسوخة حرفيًا"
+        },
+        {
+          "group": "non_blocking",
+          "name": "تفاصيل ثانوية",
+          "ac": "أي محتوى إضافي غير حاكم"
+        },
+        {
+          "group": "blocking",
+          "name": "أدوار المستخدمين وصلاحياتهم",
+          "ac": "جدول يوضّح كل دور وما يستطيع رؤيته وتعديله"
+        },
+        {
+          "group": "blocking",
+          "name": "نماذج البيانات والتقارير",
+          "ac": "الحقول المطلوبة في كل شاشة وشكل التقارير النهائية"
+        }
+      ],
+      "detailFields": [
+        {
+          "key": "screens",
+          "label": "عدد الشاشات",
+          "type": "number",
+          "value": 10,
+          "hint": "كل شاشة = واجهة مستقلة لها منطقها الخاص.",
+          "days": {
+            "stage": "البرمجة والتطوير",
+            "per": 1,
+            "unit": 2
+          }
+        },
+        {
+          "key": "roles",
+          "label": "عدد أدوار المستخدمين",
+          "type": "number",
+          "value": 3,
+          "days": {
+            "stage": "تحليل المتطلبات",
+            "per": 1,
+            "unit": 3
+          }
+        },
+        {
+          "key": "auth",
+          "label": "طريقة تسجيل الدخول",
+          "type": "select",
+          "value": "بريد وكلمة مرور",
+          "options": [
+            "بريد وكلمة مرور",
+            "رمز تحقق بالجوال (OTP)",
+            "تسجيل دخول موحّد (SSO)"
+          ],
+          "days": {
+            "stage": "البرمجة والتطوير",
+            "fixed": 4,
+            "onlyIf": "تسجيل دخول موحّد (SSO)"
+          }
+        },
+        {
+          "key": "sms",
+          "label": "إشعارات برسائل الجوال",
+          "type": "boolean",
+          "access": [
+            {
+              "name": "مزوّد الرسائل النصية",
+              "note": "حساب المزوّد ومفاتيح الربط والرصيد.",
+              "slow": false
+            }
+          ]
+        },
+        {
+          "key": "integrations",
+          "label": "عدد التكاملات الخارجية",
+          "type": "number",
+          "hint": "أي نظام خارجي يتبادل معه التطبيق بيانات.",
+          "days": {
+            "stage": "البرمجة والتطوير",
+            "per": 3,
+            "unit": 1
+          },
+          "access": [
+            {
+              "name": "توثيق الأنظمة الخارجية",
+              "note": "وثائق الـ API ومفاتيح الاختبار والإنتاج.",
+              "slow": true
+            }
+          ]
+        },
+        {
+          "key": "reports",
+          "label": "تقارير وتصدير Excel",
+          "type": "boolean",
+          "value": true,
+          "days": {
+            "stage": "البرمجة والتطوير",
+            "fixed": 3
+          },
+          "content": [
+            {
+              "group": "blocking",
+              "name": "نماذج التقارير المطلوبة",
+              "ac": "شكل كل تقرير وأعمدته ومعايير التصفية"
+            }
+          ]
+        },
+        {
+          "key": "uploads",
+          "label": "رفع ملفات ومستندات",
+          "type": "boolean",
+          "value": true
+        },
+        {
+          "key": "api",
+          "label": "واجهة API للعملاء",
+          "type": "boolean",
+          "days": {
+            "stage": "البرمجة والتطوير",
+            "fixed": 5
+          }
+        },
+        {
+          "key": "mobile",
+          "label": "تطبيق موبايل مصاحب",
+          "type": "boolean",
+          "hint": "يُسعَّر ويُخطَّط كمسار منفصل — يُضاف هنا للتوثيق فقط.",
+          "days": {
+            "stage": "البرمجة والتطوير",
+            "fixed": 10
+          }
+        }
+      ],
+      "intakeFields": [
+        {
+          "key": "requirements_files",
+          "label": "وثيقة المتطلبات",
+          "type": "files",
+          "group": "متطلبات النظام",
+          "hint": "أي مستند يشرح المطلوب — ولو مسودّة."
+        },
+        {
+          "key": "current_system",
+          "label": "النظام الحالي المستخدم",
+          "type": "textarea",
+          "group": "متطلبات النظام",
+          "hint": "اسم النظام ومشاكله وسبب الاستبدال."
+        },
+        {
+          "key": "roles_desc",
+          "label": "أدوار المستخدمين وصلاحياتهم",
+          "type": "textarea",
+          "group": "متطلبات النظام",
+          "hint": "كل دور وما يستطيع رؤيته وتعديله."
+        },
+        {
+          "key": "workflow_desc",
+          "label": "دورة العمل المطلوبة",
+          "type": "textarea",
+          "group": "متطلبات النظام",
+          "hint": "من يبدأ، ومن يعتمد، وما الذي يحدث بعد كل خطوة."
+        },
+        {
+          "key": "sample_data_files",
+          "label": "بيانات نموذجية",
+          "type": "files",
+          "group": "متطلبات النظام"
+        },
+        {
+          "key": "integrations_files",
+          "label": "وثائق الأنظمة المراد الربط بها",
+          "type": "files",
+          "group": "متطلبات النظام"
+        }
+      ]
+    },
+    {
+      "id": "landing",
+      "label": "لاندينج بيج",
+      "description": "صفحة واحدة لحملة إعلانية أو حجز موعد. مسار مختصر وسريع.",
+      "stages": [
+        {
+          "name": "اجتماع الاستلام",
+          "gate": "ميثاق موقَّع",
+          "gate_size": "small",
+          "our": 1,
+          "their": 1
+        },
+        {
+          "name": "المحتوى والأصول",
+          "gate": "Content Lock",
+          "gate_size": "big",
+          "our": 0,
+          "their": 3
+        },
+        {
+          "name": "التصميم",
+          "gate": "Design Lock",
+          "gate_size": "big",
+          "our": 3,
+          "their": 2
+        },
+        {
+          "name": "البرمجة والتطوير",
+          "gate": "Build Complete",
+          "gate_size": "small",
+          "our": 4,
+          "their": 0
+        },
+        {
+          "name": "الإطلاق والتسليم",
+          "gate": "Go Live",
+          "gate_size": "big",
+          "our": 1,
+          "their": 1
+        },
+        {
+          "name": "الضمان",
+          "gate": null,
+          "gate_size": "small",
+          "our": 14,
+          "their": 0
+        }
+      ],
+      "accessItems": [
+        {
+          "name": "الدومين",
+          "note": "اسم النطاق مسجّل وبيانات الدخول متاحة.",
+          "slow": false
+        },
+        {
+          "name": "صلاحية DNS",
+          "note": "وصول كامل لإدارة سجلات DNS.",
+          "slow": false
+        },
+        {
+          "name": "الاستضافة",
+          "note": "حساب الاستضافة أو خطة السيرفر جاهزة.",
+          "slow": false
+        },
+        {
+          "name": "Google Analytics",
+          "note": "صلاحية محرر على الحساب.",
+          "slow": false
+        },
+        {
+          "name": "Meta Pixel",
+          "note": "صلاحية على مدير الأعمال.",
+          "slow": false
+        }
+      ],
+      "contentItems": [
+        {
+          "group": "blocking",
+          "name": "الرسالة الأساسية",
+          "ac": "العرض والجملة التسويقية الرئيسية"
+        },
+        {
+          "group": "blocking",
+          "name": "اللوجو",
+          "ac": "بصيغة AI أو SVG أو EPS"
+        },
+        {
+          "group": "blocking",
+          "name": "دليل الألوان والخطوط",
+          "ac": "أكواد الألوان وأسماء الخطوط"
+        },
+        {
+          "group": "blocking",
+          "name": "حقول نموذج التسجيل",
+          "ac": "الحقول المطلوبة وجهة استقبال البيانات"
+        },
+        {
+          "group": "blocking",
+          "name": "بيانات التواصل",
+          "ac": "تليفون وواتساب وإيميل"
+        },
+        {
+          "group": "non_blocking",
+          "name": "الصور",
+          "ac": "1500px عرض كحد أدنى"
+        }
+      ],
+      "detailFields": [
+        {
+          "key": "sections",
+          "label": "عدد أقسام الصفحة",
+          "type": "number",
+          "value": 6
+        },
+        {
+          "key": "form_fields",
+          "label": "عدد حقول نموذج التسجيل",
+          "type": "number",
+          "value": 4
+        },
+        {
+          "key": "crm",
+          "label": "ربط النموذج بـ CRM أو Google Sheet",
+          "type": "boolean",
+          "value": true,
+          "access": [
+            {
+              "name": "حساب استقبال البيانات",
+              "note": "صلاحية على الـ CRM أو الشيت الذي تصل إليه التسجيلات.",
+              "slow": false
+            }
+          ]
+        },
+        {
+          "key": "whatsapp",
+          "label": "زر واتساب مباشر",
+          "type": "boolean",
+          "value": true
+        },
+        {
+          "key": "countdown",
+          "label": "عدّاد تنازلي للعرض",
+          "type": "boolean",
+          "days": {
+            "stage": "البرمجة والتطوير",
+            "fixed": 1
+          }
+        },
+        {
+          "key": "video",
+          "label": "فيديو ترويجي",
+          "type": "boolean",
+          "content": [
+            {
+              "group": "blocking",
+              "name": "الفيديو الترويجي",
+              "ac": "الفيديو النهائي بصيغة MP4، أو رابطه على يوتيوب"
+            }
+          ]
+        },
+        {
+          "key": "ab_test",
+          "label": "نسختان لاختبار A/B",
+          "type": "boolean",
+          "days": {
+            "stage": "التصميم",
+            "fixed": 2
+          }
+        }
+      ],
+      "intakeFields": [
+        {
+          "key": "offer_text",
+          "label": "العرض والرسالة الأساسية",
+          "type": "textarea",
+          "group": "محتوى الحملة",
+          "hint": "ما الذي تقدّمه الصفحة بالظبط، وما الجملة التي تلخّصه."
+        },
+        {
+          "key": "target_audience",
+          "label": "الجمهور المستهدف",
+          "type": "textarea",
+          "group": "محتوى الحملة",
+          "hint": "الفئة العمرية والمنطقة والاهتمامات."
+        },
+        {
+          "key": "cta_text",
+          "label": "نص زر الإجراء",
+          "type": "text",
+          "group": "محتوى الحملة",
+          "placeholder": "احجز موعدك الآن"
+        },
+        {
+          "key": "form_fields_list",
+          "label": "حقول نموذج التسجيل",
+          "type": "textarea",
+          "group": "محتوى الحملة",
+          "hint": "حقل في كل سطر.",
+          "placeholder": "الاسم\nرقم الجوال\nالمدينة"
+        },
+        {
+          "key": "video_link",
+          "label": "رابط الفيديو الترويجي",
+          "type": "url",
+          "group": "محتوى الحملة"
+        },
+        {
+          "key": "lead_destination",
+          "label": "جهة استقبال التسجيلات",
+          "type": "text",
+          "group": "محتوى الحملة",
+          "hint": "بريد إلكتروني أو حساب CRM أو Google Sheet."
+        }
+      ]
+    }
+  ]
+}

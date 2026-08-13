@@ -11,8 +11,9 @@ import {
   Snowflake,
   Wallet,
 } from "lucide-react";
-import { supabase } from "@/lib/api";
+import { api } from "@/lib/api";
 import { useCurrentUser } from "@/hooks/useAuth";
+import { useHolidays } from "@/hooks/useSettings";
 import {
   ballLabel,
   CR_LAUNCH_MESSAGE,
@@ -56,7 +57,6 @@ import { ContentChecklist } from "@/components/ContentChecklist";
 import { FeedbackTab } from "@/components/FeedbackTab";
 import { ChangeRequestsTab } from "@/components/ChangeRequestsTab";
 import { ReactivateDialog } from "@/components/ReactivateDialog";
-import { logAudit } from "@/lib/audit";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId")({
   head: () => ({
@@ -82,34 +82,22 @@ function ProjectDetail() {
   const [tab, setTab] = useState("content");
   const [crSeed, setCrSeed] = useState<FeedbackItem | null>(null);
 
-  const { data: holidays = [] } = useQuery({
-    queryKey: ["holidays"],
-    queryFn: async () => {
-      const { data } = await supabase.from("holidays").select("holiday_date");
-      return (data ?? []).map((h) => h.holiday_date);
-    },
-  });
+  const { data: holidays = [] } = useHolidays();
 
   const { data, isLoading } = useQuery({
     queryKey: ["project", projectId],
+    // نداءان بدل أربعة: المشروع يأتي بعلاقاته، والسجل مستقل لأنه قد يطول
     queryFn: async () => {
-      const [{ data: project }, { data: stages }, { data: log }, { data: crs }] = await Promise.all(
-        [
-          supabase.from("projects").select("*").eq("id", projectId).maybeSingle(),
-          supabase.from("stages").select("*").eq("project_id", projectId).order("stage_index"),
-          supabase
-            .from("audit_log")
-            .select("*")
-            .eq("project_id", projectId)
-            .order("created_at", { ascending: false }),
-          supabase.from("change_requests").select("*").eq("project_id", projectId),
-        ],
-      );
+      const [project, log] = await Promise.all([
+        api.projects.get(projectId),
+        api.projects.auditLog(projectId),
+      ]);
+
       return {
-        project: project as Project | null,
-        stages: (stages ?? []) as Stage[],
-        log: (log ?? []) as AuditEntry[],
-        crs: (crs ?? []) as ChangeRequest[],
+        project: project as Project,
+        stages: project.stages,
+        log,
+        crs: project.change_requests,
       };
     },
   });
@@ -118,20 +106,17 @@ function ProjectDetail() {
     mutationFn: async (p: Project) => {
       const expiry = new Date();
       expiry.setFullYear(expiry.getFullYear() + 1);
-      const { error } = await supabase
-        .from("projects")
-        .update({
-          status: "stopped",
-          credit_amount: Number(p.credit_amount) > 0 ? p.credit_amount : 0,
-          credit_expires_at: `${expiry.getFullYear()}-${String(expiry.getMonth() + 1).padStart(2, "0")}-${String(expiry.getDate()).padStart(2, "0")}`,
-        })
-        .eq("id", p.id);
-      if (error) throw error;
-      await logAudit(
+
+      // الرصيد الدائن بند تعاقدي، والحالة فعل مستقل — لكل واحد صلاحيته
+      await api.projects.updateCharter(p.id, {
+        credit_amount: Number(p.credit_amount) > 0 ? Number(p.credit_amount) : 0,
+        credit_expires_at: expiry.toISOString().slice(0, 10),
+      });
+
+      await api.projects.changeStatus(
         p.id,
-        "project_stopped",
-        "تحويل المشروع إلى «متوقف» بعد تجميد تجاوز 60 يومًا. المبالغ المدفوعة مسجَّلة كرصيد دائن صالح 12 شهرًا.",
-        me?.fullName,
+        "stopped",
+        "تجميد تجاوز 60 يومًا. المبالغ المدفوعة مسجَّلة كرصيد دائن صالح 12 شهرًا.",
       );
     },
     onSuccess: () => {
@@ -513,7 +498,7 @@ function ClientIntake({ project }: { project: Project }) {
                           {item.files.map((f) => (
                             <li key={f.id}>
                               <a
-                                href={supabase.files.url(f.id)}
+                                href={api.files.url(f.id)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1.5 text-primary underline underline-offset-4 hover:opacity-80"

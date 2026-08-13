@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { supabase } from "@/lib/api";
+import { api } from "@/lib/api";
 import type { Stage } from "@/lib/domain";
 
 /**
@@ -39,7 +39,7 @@ export function StageReviewPanel({
   const canSubmit = myTurn && stage.status !== "awaiting_approval" && !stage.locked_at;
 
   const submit = useMutation({
-    mutationFn: () => supabase.stages.submit(stage.id, note),
+    mutationFn: () => api.stages.submit(stage.id, note),
     onSuccess: () => {
       toast.success(`تم تقديم المرحلة لمراجعة ${theirLabel}.`);
       setNote("");
@@ -49,7 +49,7 @@ export function StageReviewPanel({
   });
 
   const reject = useMutation({
-    mutationFn: () => supabase.stages.reject(stage.id, reason),
+    mutationFn: () => api.stages.reject(stage.id, reason),
     onSuccess: () => {
       toast.success("تم تسجيل الرفض وإرجاع المرحلة مع ملاحظاتك.");
       setReason("");

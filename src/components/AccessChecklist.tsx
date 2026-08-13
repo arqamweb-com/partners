@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, KeyRound, Lock } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/lib/api";
+import { api } from "@/lib/api";
 import type { Tables } from "@/lib/db-types";
 import { BALL_AR, LOCKED_MESSAGE, STAGE_STATUS_AR, type Stage } from "@/lib/domain";
 import { formatDateAr } from "@/lib/business-days";
@@ -25,14 +25,7 @@ export function AccessChecklist({
 
   const { data: items = [] } = useQuery({
     queryKey: ["access-items", projectId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("access_items")
-        .select("*")
-        .eq("project_id", projectId)
-        .order("item_order");
-      return (data ?? []) as AccessItem[];
-    },
+    queryFn: () => api.access.list(projectId),
   });
 
   const locked = !!stage?.locked_at;
@@ -40,16 +33,8 @@ export function AccessChecklist({
   // على قالب نوع بلا عناصر وصول
 
   const toggle = useMutation({
-    mutationFn: async (item: AccessItem) => {
-      const { error } = await supabase
-        .from("access_items")
-        .update({
-          is_done: !item.is_done,
-          provided_at: item.is_done ? null : new Date().toISOString(),
-        })
-        .eq("id", item.id);
-      if (error) throw error;
-    },
+    // من علّم البند ووقت التسليم يكتبهما السيرفر من الجلسة
+    mutationFn: (item: AccessItem) => api.access.toggle(item.id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["access-items", projectId] }),
     onError: () => toast.error("تعذّر تحديث العنصر."),
   });

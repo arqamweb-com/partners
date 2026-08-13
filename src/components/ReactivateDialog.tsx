@@ -2,8 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Flame, Snowflake } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/lib/api";
-import { logAudit } from "@/lib/audit";
+import { api } from "@/lib/api";
 import { useCurrentUser } from "@/hooks/useAuth";
 import { useSettings } from "@/hooks/useSettings";
 import type { Project } from "@/lib/domain";
@@ -43,25 +42,12 @@ export function ReactivateDialog({
   const run = useMutation({
     mutationFn: async () => {
       if (!slot) throw new Error("حدّد موعد الدور الجديد.");
-      const { error } = await supabase
-        .from("projects")
-        .update({
-          status: "active",
-          frozen_at: null,
-          queue_slot_date: slot,
-          reactivation_fee: feeValue,
-          reactivated_at: new Date().toISOString(),
-          original_delivery_date: slot,
-          adjusted_delivery_date: slot,
-        })
-        .eq("id", project.id);
-      if (error) throw error;
-      await logAudit(
-        project.id,
-        "project_reactivated",
-        `إعادة تنشيط المشروع برسوم ${feeValue} SAR، وموعد دور جديد ${formatDateAr(slot)}.${note.trim() ? ` ملاحظة: ${note.trim()}` : ""}`,
-        me?.fullName,
-      );
+      // فعل واحد: الحالة والتواريخ والرسوم وسجل التدقيق في معاملة بالسيرفر
+      await api.projects.reactivate(project.id, {
+        queue_slot_date: slot,
+        reactivation_fee: feeValue,
+        note: note.trim(),
+      });
     },
     onSuccess: () => {
       toast.success("أُعيد تنشيط المشروع بموعد دور جديد.");

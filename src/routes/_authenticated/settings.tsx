@@ -3,9 +3,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CalendarDays, Plus, Save, SlidersHorizontal, Tags, X } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/lib/api";
+import { api } from "@/lib/api";
 import { useCurrentUser } from "@/hooks/useAuth";
-import { usePriceList, useSettings } from "@/hooks/useSettings";
+import { useHolidayRecords, usePriceList, useSettings } from "@/hooks/useSettings";
 import { useQuery } from "@tanstack/react-query";
 import { formatDateAr } from "@/lib/business-days";
 import { EmptyState } from "@/components/EmptyState";
@@ -33,13 +33,7 @@ function SettingsPage() {
   const { data: me } = useCurrentUser();
   const qc = useQueryClient();
   const { data: settings } = useSettings();
-  const { data: holidays = [] } = useQuery({
-    queryKey: ["holiday-rows"],
-    queryFn: async () => {
-      const { data } = await supabase.from("holidays").select("*").order("holiday_date");
-      return data ?? [];
-    },
-  });
+  const { data: holidays = [] } = useHolidayRecords();
   const { data: prices = [] } = usePriceList();
 
   const [form, setForm] = useState<Record<string, number>>({});
@@ -57,71 +51,58 @@ function SettingsPage() {
   const [holiday, setHoliday] = useState({ date: "", label: "" });
   const [price, setPrice] = useState({ name: "", amount: 0, days: 0 });
 
+  const invalidateSettings = () => qc.invalidateQueries({ queryKey: ["settings"] });
+
   const saveSettings = useMutation({
-    mutationFn: async () => {
-      if (!settings) return;
-      const { error } = await supabase
-        .from("app_settings")
-        .update(form as never)
-        .eq("id", settings.id);
-      if (error) throw error;
-    },
+    mutationFn: () => api.settings.update(form),
     onSuccess: () => {
       toast.success("حُفظت الإعدادات.");
-      qc.invalidateQueries({ queryKey: ["app-settings"] });
+      invalidateSettings();
     },
-    onError: () => toast.error("تعذّر الحفظ."),
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "تعذّر الحفظ."),
   });
 
   const addHoliday = useMutation({
     mutationFn: async () => {
       if (!holiday.date) throw new Error("حدّد التاريخ.");
-      const { error } = await supabase
-        .from("holidays")
-        .insert({ holiday_date: holiday.date, label: holiday.label.trim().slice(0, 200) });
-      if (error) throw error;
+      await api.settings.addHoliday(holiday.date, holiday.label.trim().slice(0, 200));
     },
     onSuccess: () => {
       setHoliday({ date: "", label: "" });
-      qc.invalidateQueries({ queryKey: ["holidays"] });
+      invalidateSettings();
     },
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "تعذّرت الإضافة."),
   });
 
   const removeHoliday = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("holidays").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["holidays"] }),
+    mutationFn: (id: string) => api.settings.removeHoliday(id),
+    onSuccess: invalidateSettings,
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "تعذّر الحذف."),
   });
 
   const addPrice = useMutation({
     mutationFn: async () => {
       if (price.name.trim().length < 2) throw new Error("اسم البند مطلوب.");
-      const { error } = await supabase.from("cr_price_items").insert({
+      await api.settings.addPriceItem({
         name: price.name.trim().slice(0, 200),
         price: price.amount,
         duration_days: price.days,
       });
-      if (error) throw error;
     },
     onSuccess: () => {
       setPrice({ name: "", amount: 0, days: 0 });
-      qc.invalidateQueries({ queryKey: ["cr-price-items"] });
+      invalidateSettings();
     },
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "تعذّرت الإضافة."),
   });
 
   const removePrice = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("cr_price_items").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["cr-price-items"] }),
+    mutationFn: (id: string) => api.settings.removePriceItem(id),
+    onSuccess: invalidateSettings,
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "تعذّر الحذف."),
   });
 
-  if (me && !me.isAdmin) {
+  if (me && !me.isSuperUser) {
     return (
       <EmptyState
         title="الإعدادات لفريق أرقام فقط"

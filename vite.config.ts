@@ -23,10 +23,14 @@ export default defineConfig({
   server: {
     host: "127.0.0.1",
     port: 5173,
-    // أثناء التطوير: طلبات /api تُمرَّر لأباتشي بتاع MAMP
+    /*
+     * أثناء التطوير: طلبات /api تُمرَّر لخادم لارافيل (php artisan serve).
+     * changeOrigin: false مقصود — الكوكي والـ CSRF مربوطان بأصل الطلب،
+     * وتغييره يكسر الجلسة.
+     */
     proxy: {
       "/api": {
-        target: "http://localhost:8888/Arqam-Flow-Manager",
+        target: process.env["VITE_API_TARGET"] || "http://127.0.0.1:8000",
         changeOrigin: false,
       },
     },

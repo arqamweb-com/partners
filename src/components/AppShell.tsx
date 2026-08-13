@@ -1,10 +1,20 @@
 import type { ReactNode } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { BarChart3, LayoutGrid, LogOut, Plus, Settings, ShieldCheck, Workflow } from "lucide-react";
+import {
+  BarChart3,
+  LayoutGrid,
+  LogOut,
+  Plus,
+  Settings,
+  ShieldCheck,
+  Users,
+  Workflow,
+} from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/lib/api";
+import { api } from "@/lib/api";
 import { useCurrentUser } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import { NotificationBell } from "@/components/NotificationBell";
 import { cn } from "@/lib/utils";
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -16,7 +26,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   async function signOut() {
     await queryClient.cancelQueries();
     queryClient.clear();
-    await supabase.auth.signOut();
+    await api.auth.logout();
     navigate({ to: "/auth", replace: true });
   }
 
@@ -49,9 +59,16 @@ export function AppShell({ children }: { children: ReactNode }) {
                 </NavLink>
               </>
             )}
+            {/* الحسابات والأدوار للأدمن وحده — لا للمدير ولا للمشرف */}
+            {me?.isSuperUser && (
+              <NavLink to="/users" active={pathname.startsWith("/users")} icon={Users}>
+                الحسابات
+              </NavLink>
+            )}
           </nav>
 
           <div className="ms-auto flex items-center gap-3">
+            <NotificationBell />
             <div className="hidden text-end leading-tight sm:block">
               <div className="text-sm font-medium">{me?.fullName ?? "..."}</div>
               <div className="text-xs text-muted-foreground">

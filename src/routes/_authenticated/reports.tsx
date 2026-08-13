@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Printer } from "lucide-react";
-import { supabase } from "@/lib/api";
+import { api } from "@/lib/api";
 import { useCurrentUser } from "@/hooks/useAuth";
 import { EmptyState } from "@/components/EmptyState";
 import { Num } from "@/components/Num";
@@ -50,29 +50,16 @@ function ReportsPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["monthly-report", month],
+    // ترشيح الشهر ونطاق المشاريع في السيرفر — لا يعود المتصفح يسحب كل شيء
     queryFn: async () => {
       const start = new Date(`${month}-01T00:00:00`);
-      const end = new Date(start.getFullYear(), start.getMonth() + 1, 1);
-      const [{ data: projects }, { data: stages }, { data: crs }, { data: rounds }] =
-        await Promise.all([
-          supabase.from("projects").select("*"),
-          supabase.from("stages").select("*"),
-          supabase
-            .from("change_requests")
-            .select("*")
-            .gte("created_at", start.toISOString())
-            .lt("created_at", end.toISOString()),
-          supabase
-            .from("feedback_rounds")
-            .select("id, project_id, created_at")
-            .gte("created_at", start.toISOString())
-            .lt("created_at", end.toISOString()),
-        ]);
+      const payload = await api.overview.reports(month);
+
       return {
-        projects: (projects ?? []) as Project[],
-        stages: (stages ?? []) as Stage[],
-        crs: (crs ?? []) as ChangeRequest[],
-        rounds: (rounds ?? []) as { id: string; project_id: string }[],
+        projects: payload.projects,
+        stages: payload.stages,
+        crs: payload.change_requests,
+        rounds: payload.feedback_rounds,
         label: `${MONTHS_AR[start.getMonth()]} ${start.getFullYear()}`,
       };
     },

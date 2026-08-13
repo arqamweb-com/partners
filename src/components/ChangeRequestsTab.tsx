@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Check, FileSignature, Plus, RotateCcw, Send, X } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/lib/api";
-import { logAudit } from "@/lib/audit";
+import { api } from "@/lib/api";
 import { useCurrentUser } from "@/hooks/useAuth";
 import { usePriceList, useHolidays } from "@/hooks/useSettings";
 import {
@@ -71,14 +70,7 @@ export function ChangeRequestsTab({
 
   const { data: crs = [], isLoading } = useQuery({
     queryKey: ["change-requests", project.id],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("change_requests")
-        .select("*")
-        .eq("project_id", project.id)
-        .order("created_at", { ascending: false });
-      return (data ?? []) as ChangeRequest[];
-    },
+    queryFn: () => api.changeRequests.list(project.id),
   });
 
   const invalidate = () => {
@@ -99,67 +91,43 @@ export function ChangeRequestsTab({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seedFrom?.id]);
 
-  /** Auto-expire requests that passed their decision deadline with no decision. */
-  useEffect(() => {
-    if (!me?.isAdmin) return;
-    const stale = crs.filter(
-      (c) =>
-        c.status === "sent" &&
-        c.decision_deadline &&
-        new Date(`${c.decision_deadline}T23:59:59`).getTime() < Date.now(),
-    );
-    if (stale.length === 0) return;
-    (async () => {
-      for (const c of stale) {
-        await supabase.from("change_requests").update({ status: "expired" }).eq("id", c.id);
-        await logAudit(
-          project.id,
-          "cr_expired",
-          `انتهت مهلة القرار (3 أيام عمل) لطلب التغيير «${c.title}» دون رد، والطلب اعتُبر منتهيًا.`,
-          "النظام",
-        );
-      }
-      invalidate();
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [crs, me?.isAdmin]);
+  /*
+   * انتهاء مهلة القرار انتقل للسيرفر: أمر arqam:expire-change-requests
+   * يعمل يوميًا. كان هنا في useEffect بحارس isAdmin، فلا تنتهي المهلة إلا
+   * إن صادف أن موظفًا فتح هذا التبويب.
+   */
 
   const save = useMutation({
     mutationFn: async (send: boolean) => {
       const title = draft.title.trim();
       if (title.length < 3) throw new Error("عنوان الطلب مطلوب.");
       if (title.length > 200) throw new Error("العنوان طويل جدًا.");
-      const now = new Date();
-      const { error } = await supabase.from("change_requests").insert({
-        project_id: project.id,
-        source_feedback_item_id: draft.source_feedback_item_id,
+
+      // الطلب يُسجَّل أولًا بلا سعر؛ التسعير والإرسال فعل ثانٍ بصلاحية أخرى،
+      // فلا يستطيع العميل أن يسعّر لنفسه ولو عدّل الطلب
+      const cr = await api.changeRequests.create(project.id, {
         title,
         description: draft.description.trim().slice(0, 4000),
-        price: Number(draft.price) || 0,
-        duration_days: Number(draft.duration_days) || 0,
-        delivery_impact_days: Number(draft.delivery_impact_days) || 0,
-        status: send ? "sent" : "draft",
-        sent_at: send ? now.toISOString() : null,
-        quote_valid_until: send ? isoDate(addDays(now, 14)) : null,
-        decision_deadline: send ? isoDate(addBusinessDays(now, 3, holidays)) : null,
+        source_feedback_item_id: draft.source_feedback_item_id,
       });
-      if (error) throw error;
-      if (draft.source_feedback_item_id) {
-        await supabase
-          .from("feedback_items")
-          .update({ resolution: "converted_to_cr" })
-          .eq("id", draft.source_feedback_item_id);
+
+      if (send) {
+        await api.changeRequests.send(cr.id, {
+          price: Number(draft.price) || 0,
+          duration_days: Number(draft.duration_days) || 0,
+          delivery_impact_days: Number(draft.delivery_impact_days) || 0,
+          quote_valid_until: isoDate(addDays(new Date(), 14)),
+          decision_deadline: isoDate(addBusinessDays(new Date(), 3, holidays)),
+        });
       }
-      await logAudit(
-        project.id,
-        send ? "cr_sent" : me?.isAdmin ? "cr_created" : "cr_requested",
-        send
-          ? `إرسال طلب تغيير «${title}» بسعر ${draft.price} ${project.status ? "SAR" : ""} ومهلة قرار 3 أيام عمل. العمل لا يبدأ قبل الاعتماد الكتابي.`
-          : me?.isAdmin
-            ? `إنشاء مسودة طلب تغيير «${title}».`
-            : `طلب العميل تعديلًا: «${title}» — بانتظار التسعير من فريق أرقام.`,
-        me?.fullName,
-      );
+
+      if (draft.source_feedback_item_id) {
+        await api.feedback.classifyItem(
+          draft.source_feedback_item_id,
+          "new_scope",
+          "converted_to_cr",
+        );
+      }
     },
     onSuccess: () => {
       setOpen(false);
@@ -172,25 +140,14 @@ export function ChangeRequestsTab({
   });
 
   const sendCR = useMutation({
-    mutationFn: async (cr: ChangeRequest) => {
-      const now = new Date();
-      const { error } = await supabase
-        .from("change_requests")
-        .update({
-          status: "sent",
-          sent_at: now.toISOString(),
-          quote_valid_until: isoDate(addDays(now, 14)),
-          decision_deadline: isoDate(addBusinessDays(now, 3, holidays)),
-        })
-        .eq("id", cr.id);
-      if (error) throw error;
-      await logAudit(
-        project.id,
-        "cr_sent",
-        `إرسال طلب التغيير «${cr.title}» للعميل.`,
-        me?.fullName,
-      );
-    },
+    mutationFn: (cr: ChangeRequest) =>
+      api.changeRequests.send(cr.id, {
+        price: Number(cr.price) || 0,
+        duration_days: cr.duration_days,
+        delivery_impact_days: cr.delivery_impact_days,
+        quote_valid_until: isoDate(addDays(new Date(), 14)),
+        decision_deadline: isoDate(addBusinessDays(new Date(), 3, holidays)),
+      }),
     onSuccess: invalidate,
     onError: () => toast.error("تعذّر الإرسال."),
   });
@@ -199,27 +156,9 @@ export function ChangeRequestsTab({
     mutationFn: async ({ cr, approve }: { cr: ChangeRequest; approve: boolean }) => {
       if (cr.quote_valid_until && new Date(`${cr.quote_valid_until}T23:59:59`) < new Date())
         throw new Error("انتهت صلاحية العرض (14 يومًا). يلزم إعادة التسعير قبل الاعتماد.");
-      const { data: u } = await supabase.auth.getUser();
-      const { error } = await supabase
-        .from("change_requests")
-        .update({
-          status: approve ? "approved" : "rejected",
-          decided_at: new Date().toISOString(),
-          decided_by: u.user?.id ?? null,
-        })
-        .eq("id", cr.id);
-      if (error) throw error;
-      // تمديد تاريخ التسليم عند الاعتماد يتم في السيرفر داخل نفس المعاملة
-      // (rule_cr_approval_side_effect) — العميل لا يملك صلاحية تعديل المشروع،
-      // وكان التعديل من هنا يفشل بصمت في النسخة القديمة.
-      await logAudit(
-        project.id,
-        approve ? "cr_approved" : "cr_rejected",
-        approve
-          ? `اعتماد كتابي لطلب التغيير «${cr.title}» — يبدأ العمل عليه الآن، وأثر التسليم ${cr.delivery_impact_days} يوم عمل.`
-          : `رفض طلب التغيير «${cr.title}».`,
-        me?.fullName,
-      );
+
+      // من قرّر ومتى، وتمديد التسليم مرة واحدة، كلها في السيرفر
+      await api.changeRequests.decide(cr.id, approve);
     },
     onSuccess: () => {
       setConfirming(null);
@@ -230,26 +169,14 @@ export function ChangeRequestsTab({
   });
 
   const reprice = useMutation({
-    mutationFn: async (cr: ChangeRequest) => {
-      const { error } = await supabase.from("change_requests").insert({
-        project_id: project.id,
-        source_feedback_item_id: cr.source_feedback_item_id,
+    // إعادة التقديم مرة واحدة فقط — يفرضها السيرفر
+    mutationFn: (cr: ChangeRequest) =>
+      api.changeRequests.create(project.id, {
         title: cr.title,
-        description: cr.description,
-        price: cr.price,
-        duration_days: cr.duration_days,
-        delivery_impact_days: cr.delivery_impact_days,
-        status: "draft",
+        description: cr.description ?? "",
+        source_feedback_item_id: cr.source_feedback_item_id,
         resubmitted_from: cr.id,
-      });
-      if (error) throw error;
-      await logAudit(
-        project.id,
-        "cr_repriced",
-        `إعادة تقديم وتسعير طلب التغيير «${cr.title}» (يُسمح بإعادة التقديم مرة واحدة فقط).`,
-        me?.fullName,
-      );
-    },
+      }),
     onSuccess: () => {
       toast.success("أُنشئت مسودة جديدة لإعادة التسعير.");
       invalidate();

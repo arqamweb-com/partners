@@ -11,8 +11,7 @@ import {
   Timer,
 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/lib/api";
-import { logAudit } from "@/lib/audit";
+import { api } from "@/lib/api";
 import { useCurrentUser } from "@/hooks/useAuth";
 import {
   CLASSIFICATION_AR,
@@ -65,22 +64,12 @@ export function FeedbackTab({
 
   const { data, isLoading } = useQuery({
     queryKey: ["feedback", project.id],
+    // نداء واحد يعيد الجولات ببنودها؛ نفرد البنود للحسابات القائمة
     queryFn: async () => {
-      const [{ data: rounds }, { data: items }] = await Promise.all([
-        supabase
-          .from("feedback_rounds")
-          .select("*")
-          .eq("project_id", project.id)
-          .order("round_number"),
-        supabase
-          .from("feedback_items")
-          .select("*")
-          .eq("project_id", project.id)
-          .order("created_at"),
-      ]);
+      const rounds = await api.feedback.list(project.id);
       return {
-        rounds: (rounds ?? []) as FeedbackRound[],
-        items: (items ?? []) as FeedbackItem[],
+        rounds: rounds as FeedbackRound[],
+        items: rounds.flatMap((r) => r.items) as FeedbackItem[],
       };
     },
   });
@@ -94,23 +83,12 @@ export function FeedbackTab({
   const openRound = rounds.find((r) => r.status === "open");
 
   const openNewRound = useMutation({
-    mutationFn: async () => {
-      const nextNumber = usedRounds + 1;
-      const paid = nextNumber > project.revision_rounds_allowed;
-      const { error } = await supabase.from("feedback_rounds").insert({
-        project_id: project.id,
+    // رقم الجولة وسجل التدقيق من السيرفر
+    mutationFn: () =>
+      api.feedback.openRound(project.id, {
         stage_id: currentStage?.id ?? null,
-        round_number: nextNumber,
-        is_paid: paid,
-      });
-      if (error) throw error;
-      await logAudit(
-        project.id,
-        "feedback_round_opened",
-        `فتح جولة ملاحظات رقم ${nextNumber}${paid ? " (جولة مدفوعة خارج الجولات المشمولة)" : ""}${currentStage ? ` على مرحلة «${currentStage.name}»` : ""}.`,
-        me?.fullName,
-      );
-    },
+        is_paid: usedRounds + 1 > project.revision_rounds_allowed,
+      }),
     onSuccess: () => {
       toast.success("تم فتح جولة ملاحظات جديدة.");
       invalidate();
@@ -123,13 +101,11 @@ export function FeedbackTab({
       const description = newItem.description.trim();
       if (description.length < 5) throw new Error("اكتب وصف الملاحظة بوضوح.");
       if (description.length > 2000) throw new Error("الوصف طويل جدًا (الحد 2000 حرف).");
-      const { error } = await supabase.from("feedback_items").insert({
-        round_id: round.id,
-        project_id: project.id,
+      // نافذة الجولة لازم تكون مفتوحة — يفرضه السيرفر
+      await api.feedback.addItem(round.id, {
         description,
         page_or_section: newItem.page.trim().slice(0, 200),
       });
-      if (error) throw error;
     },
     onSuccess: () => {
       setNewItem({ description: "", page: "" });
@@ -142,17 +118,7 @@ export function FeedbackTab({
     mutationFn: async (round: FeedbackRound) => {
       const count = items.filter((i) => i.round_id === round.id).length;
       if (count === 0) throw new Error("أضف ملاحظة واحدة على الأقل قبل الإرسال.");
-      const { error } = await supabase
-        .from("feedback_rounds")
-        .update({ status: "submitted", submitted_at: new Date().toISOString() })
-        .eq("id", round.id);
-      if (error) throw error;
-      await logAudit(
-        project.id,
-        "feedback_round_submitted",
-        `إرسال جولة الملاحظات رقم ${round.round_number} بعدد ${count} ملاحظة. النافذة أُقفلت نهائيًا.`,
-        me?.fullName,
-      );
+      await api.feedback.submitRound(round.id);
     },
     onSuccess: () => {
       setConfirmSubmit(null);
@@ -164,27 +130,9 @@ export function FeedbackTab({
 
   const classify = useMutation({
     mutationFn: async ({ item, value }: { item: FeedbackItem; value: Classification }) => {
-      const { data: u } = await supabase.auth.getUser();
-      const { error } = await supabase
-        .from("feedback_items")
-        .update({
-          classification: value,
-          classified_at: new Date().toISOString(),
-          classified_by: u.user?.id ?? null,
-        })
-        .eq("id", item.id);
-      if (error) throw error;
-      await supabase
-        .from("feedback_rounds")
-        .update({ status: "classified" })
-        .eq("id", item.round_id)
-        .eq("status", "submitted");
-      await logAudit(
-        project.id,
-        "feedback_classified",
-        `تصنيف الملاحظة «${item.description.slice(0, 60)}» كـ${CLASSIFICATION_AR[value]}.`,
-        me?.fullName,
-      );
+      // التصنيف قرار فريق أرقام — السياسة في السيرفر
+      await api.feedback.classifyItem(item.id, value);
+      await api.feedback.classifyRound(item.round_id, "classified");
     },
     onSuccess: invalidate,
     onError: () => toast.error("تعذّر التصنيف."),
@@ -196,17 +144,8 @@ export function FeedbackTab({
       if (text.length < 5)
         throw new Error("الاعتراض يجب أن يستشهد بالبند المحدد في النطاق المعتمد أو التصميم.");
       if (hoursLeft(item.classified_at) <= 0) throw new Error("انتهت مهلة الاعتراض (24 ساعة).");
-      const { error } = await supabase
-        .from("feedback_items")
-        .update({ objection_text: text, objection_at: new Date().toISOString() })
-        .eq("id", item.id);
-      if (error) throw error;
-      await logAudit(
-        project.id,
-        "feedback_objection",
-        `اعتراض على تصنيف ملاحظة «${item.description.slice(0, 60)}» — ${text.slice(0, 200)}`,
-        me?.fullName,
-      );
+      // وقت الاعتراض يختمه السيرفر
+      await api.feedback.object(item.id, text);
     },
     onSuccess: () => {
       setObjecting(null);

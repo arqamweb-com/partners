@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/lib/api";
+import { api } from "@/lib/api";
 import { acknowledgementText, type Stage } from "@/lib/domain";
 import { formatDateAr } from "@/lib/business-days";
 
@@ -37,7 +37,7 @@ export function GateApprovalDialog({
   // الإقفال وتسجيل الإقرار وبدء المرحلة التالية تتم كلها في السيرفر داخل
   // معاملة واحدة، والسيرفر يتحقق أن الكرة في ملعب من يعتمد.
   const approve = useMutation({
-    mutationFn: () => supabase.stages.approve(stage.id, typed.trim(), ack),
+    mutationFn: () => api.stages.approve(stage.id, typed.trim(), ack),
     onSuccess: () => {
       toast.success("تم اعتماد المرحلة وإقفالها.");
       setTyped("");

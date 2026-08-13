@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Check, CircleSlash, Clock, FileText, Send, X } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/lib/api";
-import { logAudit } from "@/lib/audit";
+import { api } from "@/lib/api";
 import { useCurrentUser } from "@/hooks/useAuth";
 import { useHolidays } from "@/hooks/useSettings";
 import {
@@ -30,14 +29,7 @@ export function ContentChecklist({ projectId }: { projectId: string }) {
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["content-items", projectId],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("content_items")
-        .select("*")
-        .eq("project_id", projectId)
-        .order("item_order");
-      return (data ?? []) as ContentItem[];
-    },
+    queryFn: () => api.content.list(projectId),
   });
 
   const invalidate = () => {
@@ -45,65 +37,19 @@ export function ContentChecklist({ projectId }: { projectId: string }) {
     qc.invalidateQueries({ queryKey: ["project", projectId] });
   };
 
-  /**
-   * Mutual obligation: an item left unreviewed for more than one business day
-   * is auto-accepted in the client's favour and logged.
+  /*
+   * القبول التلقائي بعد يوم عمل انتقل للسيرفر: أمر arqam:auto-accept
+   * مجدول كل ساعة. كان هنا في useEffect فلا يعمل إلا إن صادف أن موظفًا
+   * فاتح الصفحة — والتزام تعاقدي لا يصح أن يتوقف على ذلك.
    */
-  useEffect(() => {
-    if (!me?.isAdmin || items.length === 0) return;
-    const overdue = items.filter(
-      (i) =>
-        i.status === "submitted" &&
-        i.submitted_at &&
-        addBusinessDays(new Date(i.submitted_at), 1, holidays).getTime() < Date.now(),
-    );
-    if (overdue.length === 0) return;
-    (async () => {
-      for (const i of overdue) {
-        await supabase
-          .from("content_items")
-          .update({
-            status: "accepted",
-            auto_accepted: true,
-            reviewed_at: new Date().toISOString(),
-          })
-          .eq("id", i.id);
-        await logAudit(
-          projectId,
-          "content_auto_accepted",
-          `قبول تلقائي لعنصر المحتوى «${i.name}» بعد تجاوز فريق أرقام مهلة المراجعة (يوم عمل واحد).`,
-          "النظام",
-        );
-      }
-      invalidate();
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items, me?.isAdmin, holidays.length]);
 
   const submit = useMutation({
     mutationFn: async (item: ContentItem) => {
-      const value = (draft[item.id] ?? item.value).trim();
+      const value = (draft[item.id] ?? item.value ?? "").trim();
       if (!value) throw new Error("اكتب المحتوى أو الرابط أولًا.");
       if (value.length > 4000) throw new Error("النص طويل جدًا (الحد 4000 حرف).");
-      const { data: u } = await supabase.auth.getUser();
-      const { error } = await supabase
-        .from("content_items")
-        .update({
-          value,
-          status: "submitted",
-          submitted_at: item.submitted_at ?? new Date().toISOString(),
-          submitted_by: u.user?.id ?? null,
-          reviewed_at: null,
-          rejection_reason: "",
-        })
-        .eq("id", item.id);
-      if (error) throw error;
-      await logAudit(
-        projectId,
-        "content_submitted",
-        `تقديم عنصر المحتوى «${item.name}» للمراجعة.`,
-        me?.fullName,
-      );
+      // تاريخ التقديم الأصلي وسجل التدقيق يتولاهما السيرفر
+      await api.content.submit(item.id, value);
     },
     onSuccess: () => {
       toast.success("تم التقديم. مهلة مراجعتنا يوم عمل واحد.");
@@ -113,27 +59,10 @@ export function ContentChecklist({ projectId }: { projectId: string }) {
   });
 
   const review = useMutation({
+    // مسار مستقل بصلاحية مستقلة: العميل يقدّم ولا يراجع
     mutationFn: async ({ item, accept }: { item: ContentItem; accept: boolean }) => {
       if (!accept && reason.trim().length < 5) throw new Error("سبب الرفض مطلوب ومكتوب بوضوح.");
-      const { data: u } = await supabase.auth.getUser();
-      const { error } = await supabase
-        .from("content_items")
-        .update({
-          status: accept ? "accepted" : "rejected",
-          reviewed_at: new Date().toISOString(),
-          reviewed_by: u.user?.id ?? null,
-          rejection_reason: accept ? "" : reason.trim(),
-        })
-        .eq("id", item.id);
-      if (error) throw error;
-      await logAudit(
-        projectId,
-        accept ? "content_accepted" : "content_rejected",
-        accept
-          ? `قبول عنصر المحتوى «${item.name}».`
-          : `رفض عنصر المحتوى «${item.name}» — ${reason.trim()} (التأخير يُحتسب من تاريخ التقديم الأصلي ${formatDateAr(item.submitted_at)}).`,
-        me?.fullName,
-      );
+      await api.content.review(item.id, accept, accept ? undefined : reason.trim());
     },
     onSuccess: () => {
       setRejecting(null);
@@ -267,7 +196,7 @@ export function ContentChecklist({ projectId }: { projectId: string }) {
                       rows={2}
                       maxLength={4000}
                       placeholder="اكتب المحتوى أو ضع رابط الملف…"
-                      value={draft[item.id] ?? item.value}
+                      value={draft[item.id] ?? item.value ?? ""}
                       onChange={(e) => setDraft((d) => ({ ...d, [item.id]: e.target.value }))}
                     />
                     <Button

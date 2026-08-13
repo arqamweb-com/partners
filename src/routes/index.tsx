@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Workflow } from "lucide-react";
-import { supabase } from "@/lib/api";
+import { api } from "@/lib/api";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -23,8 +23,8 @@ function Index() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      navigate({ to: data.session ? "/dashboard" : "/auth", replace: true });
+    api.auth.me().then((user) => {
+      navigate({ to: user ? "/dashboard" : "/auth", replace: true });
     });
   }, [navigate]);
 

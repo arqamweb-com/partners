@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, ChevronLeft, Inbox, Snowflake, Timer, Users } from "lucide-react";
-import { supabase } from "@/lib/api";
+import { api } from "@/lib/api";
 import { useCurrentUser } from "@/hooks/useAuth";
+import { useHolidays } from "@/hooks/useSettings";
 import {
   STAGE_STATUS_AR,
   ballLabel,
@@ -36,32 +37,13 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
 
-function useHolidays() {
-  return useQuery({
-    queryKey: ["holidays"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("holidays").select("holiday_date");
-      if (error) throw error;
-      return (data ?? []).map((h) => h.holiday_date);
-    },
-  });
-}
-
 function Dashboard() {
   const { data: me } = useCurrentUser();
   const { data: holidays = [] } = useHolidays();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["projects-overview"],
-    queryFn: async () => {
-      const [{ data: projects, error: pErr }, { data: stages, error: sErr }] = await Promise.all([
-        supabase.from("projects").select("*").order("created_at", { ascending: false }),
-        supabase.from("stages").select("*"),
-      ]);
-      if (pErr) throw pErr;
-      if (sErr) throw sErr;
-      return { projects: (projects ?? []) as Project[], stages: (stages ?? []) as Stage[] };
-    },
+    queryFn: () => api.overview.dashboard(),
   });
 
   const stagesByProject = new Map<string, Stage[]>();
