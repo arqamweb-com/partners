@@ -22,7 +22,7 @@ use Illuminate\Validation\ValidationException;
  * المدد والقوالب كانت تُحسب في العميل وتُرسل جاهزة.
  *
  * هنا كل شيء في معاملة واحدة، والقوالب تُقرأ في السيرفر من
- * shared/project-types.json — فلا يملك العميل التأثير على المدد.
+ * resources/project-types.json — فلا يملك العميل التأثير على المدد.
  */
 final readonly class ProjectSeeder
 {

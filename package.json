@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "host": "npm run build && bash scripts/build-host.sh",
+    "release": "bash scripts/build-release.sh",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write ."

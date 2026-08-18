@@ -435,13 +435,22 @@ class MigrateLegacy extends Command
 
     /**
      * الملفات: البيانات + نسخ الملف نفسه.
-     * القديم: api/storage/uploads/<Y/m/uuid.ext>
+     * القديم: <جذر النظام السابق>/api/storage/uploads/<Y/m/uuid.ext>
      * الجديد: storage/app/private/uploads/<Y/m/uuid.ext>
+     *
+     * مجلد api/ لم يعد في المستودع (حُذف بعد اكتمال الهجرة، وهو في تاريخ
+     * git لمن احتاجه)، فمصدر الملفات يُمرَّر صراحةً بـ --files. الافتراضي
+     * باقٍ للنسخ المحلية التي ما زال المجلدان فيها متجاورين.
      */
     private function migrateUploads(): void
     {
         $skipFiles = (bool) $this->option('skip-files');
         $source = $this->option('files') ?: base_path('../api/storage/uploads');
+
+        if (! $skipFiles && ! is_dir($source)) {
+            $this->warn("مجلد ملفات النظام السابق غير موجود: {$source}");
+            $this->warn('مرّر مساره بـ --files=/path/to/api/storage/uploads أو تخطَّ الملفات بـ --skip-files.');
+        }
         $target = storage_path('app/private');
 
         $copied = 0;

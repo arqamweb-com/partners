@@ -1,0 +1,1 @@
+import{r as e}from"./api-RzwMITqi.js";var t=e();function n({value:e,suffix:n}){return(0,t.jsxs)(`span`,{className:`num`,children:[e,n?` ${n}`:``]})}export{n as t};
