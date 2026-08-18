@@ -104,6 +104,17 @@ const post = <T>(path: string, body?: unknown) => request<T>("POST", path, body 
 const patch = <T>(path: string, body: unknown) => request<T>("PATCH", path, body);
 const del = <T>(path: string) => request<T>("DELETE", path);
 
+/** سلسلة الاستعلام من كائن، بإسقاط ما لم يُحدَّد. */
+function qs(params: Record<string, string | number | boolean | undefined | null>): string {
+  const query = new URLSearchParams(
+    Object.entries(params)
+      .filter(([, v]) => v != null && v !== "")
+      .map(([k, v]) => [k, String(v)]),
+  ).toString();
+
+  return query ? `?${query}` : "";
+}
+
 /** أغلب المسارات تردّ { data: ... } */
 type Wrapped<T> = { data: T };
 const unwrap = <T>(p: Promise<Wrapped<T>>) => p.then((r) => r.data);
@@ -236,15 +247,19 @@ export type ProjectDetail = Project & {
 
 type Paginated<T> = { data: T[]; total: number; current_page: number; last_page: number };
 
+/** مشروع في الأرشيف: تاريخ الأرشفة ومن قام بها محمّلان معه. */
+export type ArchivedProject = Project & {
+  deleted_at: string;
+  archived_by: { id: string; full_name: string; email: string } | null;
+};
+
 export const projects = {
-  list: (params: { status?: string; per_page?: number } = {}) => {
-    const query = new URLSearchParams(
-      Object.entries(params)
-        .filter(([, v]) => v != null)
-        .map(([k, v]) => [k, String(v)]),
-    ).toString();
-    return get<Paginated<Project>>(`/projects${query ? `?${query}` : ""}`);
-  },
+  list: (params: { status?: string; per_page?: number; archived?: boolean } = {}) =>
+    get<Paginated<Project>>(`/projects${qs(params)}`),
+
+  /** المؤرشفة — للأدمن وحده، والسيرفر هو من يفرض ذلك (ProjectPolicy). */
+  archived: () =>
+    get<Paginated<ArchivedProject>>(`/projects${qs({ archived: true, per_page: 200 })}`),
 
   /** كل المشاريع المرئية — للوحة والتقارير. */
   all: async (): Promise<Project[]> => {
@@ -311,6 +326,17 @@ export const projects = {
   ) => unwrap(post<Wrapped<Project>>(`/projects/${id}/reactivate`, input)),
 
   types: () => unwrap(get<Wrapped<unknown[]>>("/project-types")),
+
+  /**
+   * الأرشفة — إخفاء المشروع من كل الشاشات مع بقائه كاملًا في السيرفر.
+   * فعل قابل للتراجع، ولذلك اسمه archive لا delete.
+   */
+  archive: (id: string) => del(`/projects/${id}`),
+
+  restore: (id: string) => unwrap(post<Wrapped<Project>>(`/projects/${id}/restore`)),
+
+  /** الحذف النهائي — من الأرشيف وحده، ولا رجعة فيه. */
+  purge: (id: string) => del(`/projects/${id}/purge`),
 
   members: {
     list: (projectId: string) =>
@@ -599,8 +625,23 @@ export type AppNotification = {
   data: { event_key: string; title: string; body: string; url: string };
 };
 
+/** صفحة من الإشعارات — العدّاد على غير المقروء كله لا على الصفحة. */
+export type NotificationPage = {
+  data: AppNotification[];
+  unread: number;
+  total: number;
+  current_page: number;
+  last_page: number;
+  per_page: number;
+};
+
 export const notifications = {
-  list: () => get<{ data: AppNotification[]; unread: number }>("/notifications"),
+  list: (params: { filter?: "all" | "unread"; page?: number; per_page?: number } = {}) =>
+    get<NotificationPage>(`/notifications${qs(params)}`),
+
+  /** إشعار بعينه — الجرس كان يعلّم الكل، فيضيع أثر ما لم يُقرأ. */
+  markRead: (id: string) => post(`/notifications/${id}/read`),
+
   markAllRead: () => post("/notifications/read"),
 };
 

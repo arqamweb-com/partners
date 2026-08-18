@@ -6,13 +6,13 @@ import { api } from "@/lib/api";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "أرقام فلو | بوابة سير عمل مشاريع أرقام ويب" },
+      { title: "أرقام ويب | بوابة سير عمل مشاريع أرقام ويب" },
       {
         name: "description",
         content:
           "بوابة داخلية تفرض سير عمل مقفول باتجاه واحد على مشاريع الوكالات الشريكة مع عدّاد تأخير واضح.",
       },
-      { property: "og:title", content: "أرقام فلو | بوابة سير عمل مشاريع أرقام ويب" },
+      { property: "og:title", content: "أرقام ويب | بوابة سير عمل مشاريع أرقام ويب" },
       { property: "og:description", content: "مراحل مقفولة، عدّاد مزدوج، وسجل تدقيق كامل." },
     ],
   }),

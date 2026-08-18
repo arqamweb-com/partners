@@ -32,6 +32,8 @@ class ExpireChangeRequests extends Command
             ->where('status', ChangeRequestStatus::Sent)
             ->whereNotNull('decision_deadline')
             ->whereDate('decision_deadline', '<', now()->toDateString())
+            // طلبات مشروع مؤرشف لا تنتهي مهلتها — المشروع نفسه خارج الخدمة
+            ->whereHas('project')
             ->with('project')
             ->get();
 

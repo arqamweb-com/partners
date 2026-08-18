@@ -63,12 +63,12 @@ export const Route = createFileRoute("/_authenticated/projects/new")({
   }),
   head: () => ({
     meta: [
-      { title: "مشروع جديد | أرقام فلو" },
+      { title: "مشروع جديد | أرقام ويب" },
       {
         name: "description",
         content: "معالج إنشاء ميثاق المشروع: الأساسيات، النطاق، المدد، والمالية.",
       },
-      { property: "og:title", content: "معالج مشروع جديد | أرقام فلو" },
+      { property: "og:title", content: "معالج مشروع جديد | أرقام ويب" },
       { property: "og:description", content: "ميثاق مشروع مكتوب يمنع الجدل لاحقًا." },
     ],
   }),

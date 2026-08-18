@@ -1,4 +1,4 @@
-# أرقام فلو — بوابة سير عمل المشاريع
+# أرقام ويب — بوابة سير عمل المشاريع
 
 تطبيق إدارة مشاريع الوكالات: سير عمل مقفول باتجاه واحد، عدّاد تأخير مزدوج،
 وسجل تدقيق غير قابل للتعديل.
@@ -7,73 +7,123 @@
 
 | الطبقة | التقنية | مكانها |
 |---|---|---|
-| الواجهة | React 19 + TanStack Router + Tailwind (SPA ثابت) | `src/` → `dist/` |
-| الـ API | PHP 8.1+ بدون إطار عمل | `api/` |
-| قاعدة البيانات | MySQL 8 / MariaDB 10.3+ | `db/` |
+| الواجهة | React 19 + TanStack Router + Tailwind 4 (SPA ثابت) | `src/` → `dist/` |
+| الـ API | Laravel 13 على PHP 8.3+ | `backend/` |
+| قاعدة البيانات | MySQL 8 / MariaDB 10.6+ | `backend/database/migrations/` |
 
-Node.js مطلوب **وقت البناء فقط**. السيرفر يحتاج PHP و MySQL لا غير — وهو
-بالضبط ما توفّره الاستضافة المشتركة على Hostinger و SiteGround.
+Node.js مطلوب **وقت البناء فقط**. السيرفر يحتاج PHP و MySQL و Composer.
+
+> **ملاحظة لمن يعرف النسخة القديمة:** كان الـ API في `api/` بـ PHP بلا إطار،
+> والمخطط في `db/schema.sql`، وكان فيه مسار عام `POST /api/db` يسمّي فيه
+> المتصفح الجدول والأعمدة. أُعيدت كتابته كله في `backend/`: كل فعل مسار
+> باسمه ووراءه سياسة، والمخطط في هجرات لارافيل. أي تعليمات تشير إلى `api/`
+> أو `db/` أو `php api/bin/admin.php` قديمة ولا تنطبق.
 
 ## التشغيل محليًا (MAMP)
 
 **1. قاعدة البيانات**
 
+MAMP يشغّل MySQL على المنفذ `8889` لا `3306`:
+
 ```sh
 MYSQL=/Applications/MAMP/Library/bin/mysql80/bin/mysql
-$MYSQL -u root -proot -e "CREATE DATABASE arqam_flow CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-$MYSQL -u root -proot arqam_flow < db/schema.sql
-$MYSQL -u root -proot arqam_flow < db/seed.sql
-$MYSQL -u root -proot arqam_flow < db/triggers.sql   # اختياري: حماية إضافية
+$MYSQL -u root -proot -P 8889 -h 127.0.0.1 \
+  -e "CREATE DATABASE arqam_flow_v2 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      CREATE DATABASE arqam_flow_v2_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 ```
 
-**2. إعدادات الـ API**
+قاعدة `_test` منفصلة لأن الاختبارات تمسح ما فيها في كل تشغيل.
+
+**2. الباك**
 
 ```sh
-cp api/config.example.php api/config.php   # موجود بالفعل محليًا
+cd backend
+composer install
+cp .env.example .env
+php artisan key:generate
 ```
 
-**3. حساب الأدمن**
+ثم اضبط في `backend/.env`:
 
-التسجيل من الموقع ينشئ حساب **عميل** دائمًا. حسابات الأدمن تُنشأ من التيرمينال:
+```
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=8889
+DB_DATABASE=arqam_flow_v2
+DB_USERNAME=root
+DB_PASSWORD=root
+```
 
 ```sh
-php api/bin/admin.php create you@site.com "اسمك"    # كلمة المرور تُطلب أثناء التشغيل
-php api/bin/admin.php list                          # عرض كل الأدمن
-php api/bin/admin.php promote user@site.com         # ترقية عميل مسجَّل
-php api/bin/admin.php passwd  you@site.com          # تغيير كلمة المرور
+php artisan migrate
 ```
 
-على MAMP استخدم مسار PHP الكامل:
-`/Applications/MAMP/bin/php/php8.3.9/bin/php api/bin/admin.php list`
+**3. أول حساب أدمن**
 
-**4. التشغيل**
+التسجيل من الموقع ينشئ حساب **عميل** دائمًا. أول أدمن من التيرمينال:
 
 ```sh
-npm install
-npm run dev     # http://127.0.0.1:5173
+php artisan arqam:user create you@site.com --role=admin --name="اسمك"
 ```
 
-أباتشي بتاع MAMP لازم يكون شغال — خادم التطوير يمرّر طلبات `/api` إليه.
+كلمة المرور تُطلب أثناء التشغيل ولا تُكتب في الأمر — حتى لا تدخل في
+`history`. بعد أول أدمن، الباقي يُدار من الواجهة: **الحسابات** في الشريط
+العلوي (إنشاء، أدوار، إيقاف، كلمة مرور).
+
+**4. التشغيل — تيرمينالان**
+
+```sh
+cd backend && php artisan serve      # http://127.0.0.1:8000
+npm run dev                          # http://127.0.0.1:5173
+```
+
+افتح `5173`. خادم vite يمرّر `/api` إلى `8000` (انظر `vite.config.ts`).
+**502 على `/api` معناه أن لارافيل واقف** — ما فيش سبب تاني.
+
+أباتشي بتاع MAMP غير مطلوب إطلاقًا في التطوير؛ لازم بس أن MySQL شغّال.
+
+## الأوامر
+
+```sh
+# الحسابات
+php artisan arqam:user create you@site.com --role=manager --name="اسمك"
+php artisan arqam:user role   you@site.com --role=supervisor
+php artisan arqam:user passwd you@site.com
+php artisan arqam:user list   --role=admin
+php artisan arqam:user disable|enable you@site.com
+
+# الالتزامات الزمنية (تعمل تلقائيًا بالكرون — انظر routes/console.php)
+php artisan arqam:auto-accept --dry-run              # قبول المحتوى بعد المهلة
+php artisan arqam:expire-change-requests --dry-run   # إسقاط عروض التغيير المنتهية
+
+# الاختبارات وأدوات الفرونت
+php artisan test                                     # 74 اختبارًا
+npm run lint && npx tsc --noEmit && npm run build
+```
 
 ## كيف يعمل النظام
 
 ### الأدوار
 
-| | الأدمن (فريق أرقام) | العميل |
-|---|---|---|
-| إنشاء حسابه | من التيرمينال فقط | تسجيل ذاتي من الموقع |
-| إنشاء مشروع | ✅ بكل البنود التعاقدية | ✅ البيانات الأساسية فقط |
-| المسار السريع وجولات التعديل والضمان | ✅ | ❌ يضبطها فريق أرقام |
-| التقارير والإعدادات | ✅ | ❌ |
-| يرى | كل المشاريع | مشاريعه فقط |
+للمستخدم **دور في النظام**، ودور مستقل **داخل كل مشروع**. الصلاحية الفعلية
+تُحسب من الاثنين معًا (`app/Services/ProjectParty.php`) — ولذلك يمكن إسناد
+مشاريع لمشرف بلا منحه النظام كله.
 
-العميل يرى مشروعًا إذا كان **مالكه** (أنشأه بنفسه) أو **عضوًا** فيه (دعاه الأدمن).
+| دور النظام | يرى | يسعّر ويعتمد البنود | إعدادات النظام والحسابات |
+|---|---|---|---|
+| أدمن | كل المشاريع | ✅ | ✅ |
+| مدير | كل المشاريع | ✅ | ❌ |
+| مشرف | المسند إليه فقط | ❌ | ❌ |
+| شريك | مشاريع وكالته | ❌ | ❌ |
+| عميل | مشاريعه | ❌ | ❌ |
 
-### ربط العميل بمشروع أنشأه الأدمن
+ودور المشروع (`project_members.role`): **مسؤول تنفيذ**، **منفّذ**، **شريك**،
+**عميل**، **مطّلع**. هو ما يحدّد جهة المستخدم في دورة الاعتماد: من ينفّذ
+(`us`) ومن يستلم (`them`).
 
-من صفحة المشروع ← تبويب «المحتوى» ← كارت **عملاء المشروع**: يكتب الأدمن بريد
-العميل. لو العميل مسجَّل يُربط فورًا، ولو لسه ما سجّلش يُربط تلقائيًا لحظة
-إنشاء حسابه بنفس البريد.
+لا وصول لمشروع بلا صف في `project_members` — إلا الأدمن والمدير، فيريان
+الكل بلا عضوية. والدعوة بالبريد صف بلا `user_id`، يُربط تلقائيًا لحظة إنشاء
+حساب بنفس البريد (سواء سجّل بنفسه أو أنشأه أدمن).
 
 ### دورة اعتماد المرحلة (في الاتجاهين)
 
@@ -87,149 +137,148 @@ npm run dev     # http://127.0.0.1:5173
               المرحلة التالية                 مع سبب الرفض مسجَّلًا
 ```
 
-نفس الآلية تخدم الاتجاهين: فريق أرقام يرسل التصميم فيعتمده العميل أو يرفضه
-بملاحظات، والعميل يجهّز مرحلته فيعتمدها فريق أرقام أو يرفضها.
+الانتقالات عبر `POST /api/stages/{id}/submit|approve|reject` — لا بتعديل
+أعمدة من المتصفح. السيرفر يتحقق أن الكرة في ملعب من ينفّذ الإجراء، فلا
+يعتمد أحد عمل نفسه. سبب الرفض إجباري ويُسجَّل في سجل التدقيق.
 
-الانتقالات تتم عبر `/api/stages/submit|approve|reject` وليس بتعديل أعمدة من
-المتصفح — السيرفر هو من يتحقق أن الكرة في ملعب من ينفّذ الإجراء، فلا يستطيع
-أي طرف اعتماد عمل نفسه أو إقفال مرحلة ليست من حقه. سبب الرفض إجباري
-(10 أحرف على الأقل) ويُسجَّل في سجل التدقيق.
+### ما لا يقبله السيرفر مهما طلب المتصفح
+
+- **الفاعل من الطلب**: `AuditLogger` يأخذه من الجلسة دائمًا.
+- **التسعير من العميل**: التحقق في `ProjectController::store` لا يعرف حقول
+  التسعير أصلًا، فلا حاجة لتنقيتها.
+- **دور غير «عميل» من التسجيل الذاتي**: `SystemRole::selfServiceDefault()`.
+- **الأدمن فوق كل شيء**: لا يوجد `Gate::before` — اعتمادات البوابات وسجل
+  التدقيق لا تُعدَّل ولا تُحذف من أحد.
 
 ## الرفع على cPanel
 
 ### المتطلبات
-- **PHP 8.0 أو أحدث** — من `MultiPHP Manager` في cPanel اختر النطاق الفرعي واضبط الإصدار.
-- MySQL 5.7+ أو MariaDB 10.3+
-- Node.js على **جهازك** فقط للبناء — السيرفر لا يحتاجه.
 
-### 1. البناء على جهازك
+- PHP **8.3+** (من `MultiPHP Manager`)، وامتدادات لارافيل المعتادة
+  (`mbstring`, `openssl`, `pdo_mysql`, `tokenizer`, `xml`, `ctype`, `json`).
+- MySQL 8 / MariaDB 10.6+
+- وصول Terminal في cPanel، أو Composer مرفوع يدويًا.
+- Node.js على **جهازك** فقط.
 
-```sh
-npm install
-npm run build
-```
-
-الناتج في `dist/` — ملفات ثابتة يقدّمها أباتشي مباشرة.
-
-### 2. قاعدة البيانات
-
-من `MySQL® Databases` في cPanel: أنشئ قاعدة ومستخدمًا، وأضف المستخدم للقاعدة
-بصلاحية `ALL PRIVILEGES`. سجّل الاسم الكامل — cPanel يضيف بادئة حسابك
-(مثال: `arqam_flow` تصير `u123456_arqam_flow`).
-
-ثم من `phpMyAdmin` اختر القاعدة وبويب **Import** واستورد بالترتيب:
-
-| # | الملف | ملاحظة |
-|---|---|---|
-| 1 | `db/schema.sql` | كل الجداول — يشمل كل الترقيات |
-| 2 | `db/seed-production.sql` | إعدادات وبنود تسعير وأجازات، بلا مشاريع تجريبية |
-| 3 | `db/triggers.sql` | اختياري — غيّر خانة `Delimiter` إلى `$$` قبل التنفيذ |
-
-> `db/migrations/` للترقية فقط، وتُستخدم حين تحدّث نسخة منشورة سابقًا.
-> التنصيب الجديد يحتاج `schema.sql` وحده.
-
-> `triggers.sql` حماية إضافية داخل قاعدة البيانات. لو الاستضافة منعت صلاحية
-> `TRIGGER` تجاهله — كل القواعد مطبَّقة في الـ API أصلًا.
-
-### 3. رفع الملفات
-
-النطاق الفرعي في cPanel له مجلد جذر (مثل `public_html/app` أو
-`/home/USER/app.example.com`). ارفع إليه:
-
-```
-جذر النطاق الفرعي/
-├── index.html          ← محتويات dist/
-├── assets/
-├── favicon.ico
-├── robots.txt
-├── .htaccess           ← من dist/ — بدونه تحديث أي صفحة داخلية يعطي 404
-└── api/                ← مجلد api كامل، بما فيه .htaccess و .user.ini و storage/
-```
-
-> الملفات التي تبدأ بنقطة مخفية: فعّل `Show Hidden Files` في File Manager
-> (من `Settings` أعلى اليمين) أو أظهرها في برنامج الـ FTP قبل الرفع.
-
-> أسرع طريقة: اضغط محتويات `dist` و`api` في ملف ZIP، ارفعه، ثم `Extract`
-> من File Manager.
-
-### 4. الاتصال بقاعدة البيانات
-
-`api/config.php` غير موجود في المستودع عمدًا. أنشئه على السيرفر من نسخة
-`api/config.example.php` واملأه:
-
-```php
-'db' => [
-    'host' => 'localhost',
-    'port' => 3306,
-    'name' => 'u123456_arqam_flow',   // الاسم الكامل بالبادئة
-    'user' => 'u123456_arqam',
-    'pass' => 'كلمة المرور',
-],
-'session' => [
-    'secure' => true,   // الموقع على HTTPS
-],
-'debug' => false,       // يمنع ظهور تفاصيل الأخطاء للزوّار
-```
-
-### 5. مجلد الملفات المرفوعة
-
-تأكد أن `api/storage/uploads` موجود وصلاحيته `0755`. أنشئه من File Manager
-إن لم يُرفع (المجلد فارغ فقد تتخطاه بعض برامج الـ FTP).
-
-### 6. حساب الأدمن
-
-التسجيل من الموقع ينشئ حساب **عميل** دائمًا. حساب الأدمن يُنشأ من السيرفر:
-
-**إن توفّر `Terminal` في cPanel:**
+### ١. البناء على جهازك
 
 ```sh
-cd ~/app.example.com
-php api/bin/admin.php create you@site.com "اسمك"
+npm install && npm run build     # الناتج في dist/
+cd backend && composer install --no-dev --optimize-autoloader
 ```
 
-**إن لم يتوفّر** — من `Cron Jobs`، أضف مهمة تعمل مرة واحدة (مثلًا بعد
-دقيقتين)، واكتب في خانة الأمر:
+### ٢. الرفع
+
+ارفع مجلد `backend/` كاملًا **خارج** `public_html` (مثلًا `/home/USER/arqam`)،
+ثم انسخ محتويات `dist/` إلى `backend/public/`:
+
+```
+/home/USER/arqam/            ← الباك، خارج جذر الويب
+├── app/  bootstrap/  config/  database/  routes/  storage/  vendor/
+├── .env                     ← يُنشأ على السيرفر، لا يُرفع من جهازك
+└── public/                  ← ⬅ اجعل جذر النطاق يشير هنا
+    ├── index.php  .htaccess ← من لارافيل
+    ├── index.html  assets/  ← من dist/
+    └── favicon.ico  robots.txt
+```
+
+**جذر النطاق (Document Root) لازم يشير إلى `backend/public`** — من
+`Domains` في cPanel. لو أشار لمجلد أعلى منه، يصير `.env` والكود كله قابلًا
+للتنزيل من المتصفح.
+
+`.htaccess` بتاع لارافيل يكفي وحده: الملفات الموجودة (`assets/…`) يقدّمها
+أباتشي، وأي مسار آخر يذهب إلى `index.php`. و`routes/web.php` يردّ
+`index.html` لأي مسار ليس `/api` — وهو ما يجعل تحديث الصفحة على
+`/dashboard` يعمل بدل 404.
+
+### ٣. قاعدة البيانات والإعداد
+
+من `MySQL® Databases` أنشئ قاعدة ومستخدمًا (cPanel يضيف بادئة حسابك).
+ثم على السيرفر:
 
 ```sh
-php /home/USER/app.example.com/api/bin/admin.php create you@site.com "اسمك"
+cd ~/arqam
+cp .env.example .env      # واملأه (تحت)
+php artisan key:generate
+php artisan migrate --force
+php artisan arqam:user create you@site.com --role=admin --name="اسمك"
 ```
 
-بلا طرفية تفاعلية يولّد الأمر كلمة مرور عشوائية ويطبعها — تصلك في بريد
-المهمة. انسخها، سجّل الدخول، ثم غيّرها. واحذف المهمة بعد نجاحها.
+### ٤. قائمة فحص الإنتاج
 
-### 7. التأكد
+في `.env` على السيرفر:
 
-افتح `https://نطاقك/api/health`:
-
-```json
-{ "ok": true, "upload": { "php_post_max": "12M", "php_upload_max": "8M" } }
+```
+APP_ENV=production
+APP_DEBUG=false                  # ⬅ الأهم: true يكشف المسارات والإعدادات
+APP_URL=https://app.example.com
+SESSION_DRIVER=database
+SESSION_SECURE_COOKIE=true       # الجلسة على HTTPS فقط
+QUEUE_CONNECTION=database
+MAIL_MAILER=smtp                 # ⬅ log يعني أن استعادة كلمة المرور لا تصل أحدًا
+MAIL_HOST=... MAIL_PORT=... MAIL_USERNAME=... MAIL_PASSWORD=...
+MAIL_FROM_ADDRESS="no-reply@example.com"
 ```
 
-- `ok: true` يعني الاتصال بقاعدة البيانات سليم.
-- `php_post_max` **لازم يكون أكبر من 8M**، وإلا فشل رفع الملفات الكبيرة.
-  إن ظهر أقل، اضبطه من `MultiPHP INI Editor` في cPanel (`post_max_size = 12M`)
-  — ملف `api/.user.ini` يضبطه تلقائيًا على أغلب الاستضافات، وقد تتجاهله بعضها.
+ثم:
 
-ثم افتح الموقع وسجّل الدخول بحساب الأدمن.
+```sh
+php artisan config:cache && php artisan route:cache && php artisan view:cache
+chmod -R 775 storage bootstrap/cache
+```
 
-### تحديث نسخة منشورة
+> بعد أي تعديل على `.env` شغّل `php artisan config:cache` من جديد، وإلا بقي
+> القديم ساريًا.
 
-1. `npm run build` على جهازك.
-2. ارفع `dist/` (استبدل `index.html` و`assets/`) و`api/` — **لا تلمس**
-   `api/config.php` ولا `api/storage/`.
-3. إن كانت هناك ترقيات جديدة في `db/migrations/`، شغّل الجديد منها فقط
-   بالترتيب من phpMyAdmin.
+### ٥. الكرون — غير اختياري
 
-## الأمان
+ثلاثة التزامات زمنية معلّقة عليه: القبول التلقائي للمحتوى بعد المهلة،
+إسقاط عروض التغيير المنتهية، وإرسال الإشعارات من الطابور. بدونه يبقى النظام
+شغّالًا في الظاهر ويتوقف الزمن فيه.
 
-الحماية كلها في `api/` — الواجهة لا تتصل بقاعدة البيانات إطلاقًا:
+من `Cron Jobs` في cPanel، كل دقيقة:
 
-- `api/lib/schema.php` — صلاحيات كل جدول (بديل RLS): من يقرأ، من يكتب،
-  وأي أعمدة يملك العميل تعديلها.
-- `api/lib/query.php` — تقييد الصفوف على مشاريع المستخدم، وتنقية الأعمدة،
-  وكل الاستعلامات عبر PDO بمعاملات مربوطة.
-- `api/lib/rules.php` — قواعد العمل: قفل المراحل، نافذة الملاحظات، حساب
-  أيام العمل، إعادة تقديم طلب التغيير مرة واحدة.
-- `api/config.php` لا يُرفع على git.
+```
+* * * * * cd /home/USER/arqam && /usr/local/bin/php artisan schedule:run >> /dev/null 2>&1
+```
 
-عند إضافة جدول جديد: أضفه في `schema.php` وإلا لن يقبله الـ API أصلًا.
+### ٦. التحديث لاحقًا
+
+```sh
+npm run build                                  # على جهازك
+# ارفع dist/ إلى backend/public/ و backend/app|routes|... المعدّلة
+cd ~/arqam && php artisan migrate --force && php artisan config:cache
+```
+
+## بنية المشروع
+
+```
+src/                     الواجهة (SPA)
+├── routes/              صفحات TanStack Router
+├── components/          مكوّنات مشتركة + ui/ (shadcn)
+└── lib/api.ts           عميل الـ API — نداء لكل فعل، لا استعلامات عامة
+
+backend/
+├── app/Http/Controllers/Api/    مسار لكل فعل
+├── app/Policies/                من يملك ماذا — القرار كله هنا
+├── app/Services/                ProjectParty، StageWorkflow، BusinessDays…
+├── app/Enums/                   SystemRole، ProjectRole، حالات المراحل…
+├── app/Console/Commands/        arqam:user، arqam:auto-accept…
+├── database/migrations/         المخطط
+└── tests/Feature/               74 اختبارًا، أغلبها مواصفة أمنية
+```
+
+## نقاط معروفة (لمن يكمل من هنا)
+
+- `api/` و`db/` و`host/` و`scripts/build-host.sh` بقايا المعمارية القديمة،
+  لم تُحذف بعد. **لا ترفعها مع النسخة الجديدة** — رفعها يفتح للنظام بابًا
+  ثانيًا بلا سياسات. و`npm run host` لم يعد يُنتج نسخة صالحة: قواعد أباتشي
+  انتقلت إلى `backend/public/.htaccess` فلم يعد `dist/` يحمل واحدة.
+- أنواع المشاريع معرَّفة مرتين: `backend/resources/project-types.json`
+  للسيرفر و`src/lib/project-types.ts` للمتصفح (و`shared/project-types.json`
+  نسخة ثالثة غير مستعملة). أي نوع جديد يحتاج تعديل الاثنين الأولين معًا.
+- `notification_preferences` مبني في السيرفر ويحترمه `Notifier`، لكن لا
+  مسار API ولا شاشة لضبطه بعد.
+- لا توجد صفحة يغيّر فيها المستخدم كلمة مروره وهو داخل — الاستعادة بالبريد
+  فقط، أو يعيّنها له أدمن.
+- لا يوجد CI. الاختبارات تُشغَّل يدويًا.

@@ -77,9 +77,38 @@ class ProjectPolicy
         return $user->canPrice() && ProjectParty::for($user, $project)->isMember();
     }
 
+    /** شاشة الأرشيف — من لا يملك الحذف لا يرى المحذوف. */
+    public function viewArchive(User $user): bool
+    {
+        return $user->isSuperUser();
+    }
+
+    /**
+     * أرشفة المشروع — إخفاؤه من كل الشاشات مع إبقائه في قاعدة البيانات.
+     *
+     * للأدمن وحده، ولو كان مالك المشروع أو عضوًا فيه لا فرق: الحذف ليس
+     * فعلًا داخل المشروع بل فعلًا عليه.
+     */
     public function delete(User $user, Project $project): bool
     {
         return $user->isSuperUser();
+    }
+
+    /** إعادة مشروع من الأرشيف. */
+    public function restore(User $user, Project $project): bool
+    {
+        return $user->isSuperUser();
+    }
+
+    /**
+     * الحذف النهائي — لا رجعة فيه، ويمسح معه سجل التدقيق والملفات.
+     *
+     * مشروط بالأرشفة أولًا عمدًا: فعلان منفصلان في شاشتين مختلفتين
+     * أصعب على الخطأ من زرار واحد يمسح كل شيء.
+     */
+    public function forceDelete(User $user, Project $project): bool
+    {
+        return $user->isSuperUser() && $project->trashed();
     }
 
     /** بذر المراحل والقوائم من القالب — مرة واحدة عند اعتماد الطلب. */

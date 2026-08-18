@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\ChangeRequestController;
 use App\Http\Controllers\Api\ContentItemController;
 use App\Http\Controllers\Api\FeedbackController;
 use App\Http\Controllers\Api\FileController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OverviewController;
 use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\ProjectController;
@@ -15,7 +16,6 @@ use App\Http\Controllers\Api\ProjectMemberController;
 use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\StageController;
 use App\Http\Controllers\Api\UserController;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 /**
@@ -59,6 +59,12 @@ Route::middleware('auth')->group(function () {
     Route::get('projects/{project}/audit-log', [ProjectController::class, 'auditLog']);
     Route::put('projects/{project}/stage-plan', [ProjectController::class, 'saveStagePlan']);
     Route::post('projects/{project}/reactivate', [ProjectController::class, 'reactivate']);
+
+    // الأرشفة والحذف النهائي فعلان منفصلان بمسارين — والثاني يقبل مشروعًا
+    // مؤرشفًا (withTrashed) لأن الأول أخرجه من الاستعلام العادي
+    Route::delete('projects/{project}', [ProjectController::class, 'destroy']);
+    Route::post('projects/{project}/restore', [ProjectController::class, 'restore'])->withTrashed();
+    Route::delete('projects/{project}/purge', [ProjectController::class, 'forceDestroy'])->withTrashed();
 
     // ---- الأعضاء والدعوات ----
     Route::get('projects/{project}/members', [ProjectMemberController::class, 'index']);
@@ -123,16 +129,9 @@ Route::middleware('auth')->group(function () {
     Route::delete('settings/price-items/{crPriceItem}', [SettingsController::class, 'destroyPriceItem']);
 
     // ---- الإشعارات ----
-    Route::get('notifications', fn (Request $r) => response()->json([
-        'data'   => $r->user()->notifications()->limit(50)->get(),
-        'unread' => $r->user()->unreadNotifications()->count(),
-    ]));
-
-    Route::post('notifications/read', function (Request $r) {
-        $r->user()->unreadNotifications->markAsRead();
-
-        return response()->json(['ok' => true]);
-    });
+    Route::get('notifications', [NotificationController::class, 'index']);
+    Route::post('notifications/read', [NotificationController::class, 'readAll']);
+    Route::post('notifications/{notification}/read', [NotificationController::class, 'read']);
 });
 
 Route::get('health', fn () => response()->json([

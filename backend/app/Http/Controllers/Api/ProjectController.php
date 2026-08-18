@@ -18,6 +18,9 @@ use App\Services\ProjectTypeRegistry;
 use App\Services\StagePlanEditor;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 /**
@@ -52,12 +55,21 @@ class ProjectController extends Controller
     {
         $this->authorize('viewAny', Project::class);
 
+        // الأرشيف شاشة مستقلة للأدمن، لا حالة إضافية في القائمة العادية:
+        // من لا يملك الحذف لا يرى المحذوف أصلًا
+        $archived = $request->boolean('archived');
+
+        if ($archived) {
+            $this->authorize('viewArchive', Project::class);
+        }
+
         $projects = Project::query()
+            ->when($archived, fn ($q) => $q->onlyTrashed()->with('archivedBy:id,full_name,email'))
             ->visibleTo($request->user())
             ->with('members:id,project_id,user_id,role')
             ->when($request->string('status')->isNotEmpty(),
                 fn ($q) => $q->where('status', $request->string('status')))
-            ->latest('updated_at')
+            ->latest($archived ? 'deleted_at' : 'updated_at')
             ->paginate(min((int) $request->integer('per_page', 50), 200));
 
         return response()->json($projects);
@@ -319,5 +331,113 @@ class ProjectController extends Controller
         $this->authorize('view', $project);
 
         return response()->json(['data' => $project->auditLogs()->limit(500)->get()]);
+    }
+
+    /**
+     * أرشفة المشروع.
+     *
+     * حذف ناعم: الصف يبقى بكل ما تحته — المراحل والاعتمادات وسجل التدقيق —
+     * ويختفي المشروع من كل استعلام لأن SoftDeletes نطاق عام على الموديل.
+     * فلا شاشة تحتاج أن تتذكّر استثناءه.
+     *
+     * الإشعارات وحدها تُمسح فعلًا لا تُخفى: الإشعار وعدٌ بأن الضغط عليه
+     * يفتح شيئًا، وإشعار على مشروع مؤرشف وعد مكسور. وهي — بخلاف سجل
+     * التدقيق — ليست مستند إثبات.
+     */
+    public function destroy(Request $request, Project $project): JsonResponse
+    {
+        $this->authorize('delete', $project);
+
+        $user = $request->user();
+
+        // السجل يُكتب قبل الأرشفة لا بعدها: بعدها المشروع خارج كل استعلام
+        $this->audit->log($project, $user, 'project_archived',
+            sprintf('أرشفة المشروع «%s» وإخفاؤه من كل الشاشات.', $project->name));
+
+        $counts = DB::transaction(function () use ($project, $user) {
+            $notifications = DB::table('notifications')->where('project_id', $project->id)->delete();
+
+            $project->forceFill(['deleted_by' => $user->id])->save();
+            $project->delete();
+
+            return ['notifications' => $notifications];
+        });
+
+        Log::info('arqam.project_archived', [
+            'actor'         => $user->email,
+            'project'       => $project->id,
+            'name'          => $project->name,
+            'status'        => $project->status->value,
+            'notifications' => $counts['notifications'],
+            'ip'            => $request->ip(),
+        ]);
+
+        return response()->json(['data' => ['ok' => true]]);
+    }
+
+    /** إعادة مشروع من الأرشيف كما كان. */
+    public function restore(Request $request, Project $project): JsonResponse
+    {
+        $this->authorize('restore', $project);
+
+        abort_unless($project->trashed(), 422, 'هذا المشروع ليس في الأرشيف.');
+
+        $user = $request->user();
+
+        $project->restore();
+        $project->forceFill(['deleted_by' => null])->save();
+
+        $this->audit->log($project, $user, 'project_restored',
+            sprintf('إعادة المشروع «%s» من الأرشيف.', $project->name));
+
+        Log::info('arqam.project_restored', [
+            'actor'   => $user->email,
+            'project' => $project->id,
+            'name'    => $project->name,
+            'ip'      => $request->ip(),
+        ]);
+
+        return response()->json(['data' => $project->fresh()]);
+    }
+
+    /**
+     * الحذف النهائي — من الأرشيف وحده، ولا رجعة فيه.
+     *
+     * القيود في قاعدة البيانات تتولّى الصفوف التابعة (cascade). ما لا
+     * تتولّاه هو الملفات على القرص: صف الرفع يُمسح والملف يبقى يتيمًا
+     * لا يعرف أحد أنه هناك. فتُمسح هنا صراحة قبل الحذف.
+     *
+     * وقبل كل ذلك يُكتب ملخّص في اللوج: سجل التدقيق نفسه يُمسح بعد لحظة،
+     * فلو لم يُكتب هنا لم يبقَ أثر لأن المشروع كان موجودًا أصلًا.
+     */
+    public function forceDestroy(Request $request, Project $project): JsonResponse
+    {
+        $this->authorize('forceDelete', $project);
+
+        $user    = $request->user();
+        $uploads = $project->uploads()->get(['id', 'stored_path']);
+
+        Log::warning('arqam.project_purged', [
+            'actor'     => $user->email,
+            'project'   => $project->id,
+            'name'      => $project->name,
+            'status'    => $project->status->value,
+            'stages'    => $project->stages()->count(),
+            'audit_log' => $project->auditLogs()->count(),
+            'files'     => $uploads->count(),
+            'ip'        => $request->ip(),
+        ]);
+
+        DB::transaction(function () use ($project) {
+            $project->forceDelete();
+        });
+
+        // بعد نجاح المعاملة لا قبلها: ملف محذوف ومعاملة فاشلة = صف يشير
+        // إلى لا شيء، وهو أسوأ من ملف يتيم
+        foreach ($uploads as $upload) {
+            Storage::disk('private')->delete($upload->stored_path);
+        }
+
+        return response()->json(['data' => ['ok' => true]]);
     }
 }

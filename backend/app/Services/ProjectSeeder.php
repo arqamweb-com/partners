@@ -34,6 +34,7 @@ final readonly class ProjectSeeder
         private BusinessDays $businessDays,
         private AuditLogger $audit,
         private Notifier $notifier,
+        private StageClock $clock,
     ) {}
 
     /**
@@ -106,8 +107,10 @@ final readonly class ProjectSeeder
 
     private function seedStages(Project $project, array $stages): void
     {
+        $now = now();
+
         foreach ($stages as $i => $stage) {
-            $project->stages()->create([
+            $created = $project->stages()->create([
                 'stage_index'         => $i,
                 'is_parallel'         => false,
                 'name'                => $stage['name'],
@@ -117,16 +120,24 @@ final readonly class ProjectSeeder
                 'their_duration_days' => (int) ($stage['their_duration_days'] ?? $stage['their'] ?? 0),
                 // الأولى تبدأ فورًا والكرة عند فريق أرقام
                 'status'              => $i === 0 ? StageStatus::Active : StageStatus::Pending,
-                'started_at'          => $i === 0 ? now() : null,
+                'started_at'          => $i === 0 ? $now : null,
                 'ball_in_court'       => Side::Us,
             ]);
+
+            // الجارية وحدها لها موعد. البقية تأخذه حين يأتي دورها،
+            // فموعد مرحلة لم تبدأ تخمين يُنقض بأول تأخير قبلها.
+            if ($i === 0) {
+                $created->update(['due_at' => $this->clock->dueFrom($created, Side::Us, $now)]);
+            }
         }
     }
 
     /** الوصول والحسابات يمشي بالتوازي مع باقي المراحل، والكرة عند العميل. */
     private function seedParallelAccessTrack(Project $project): void
     {
-        $project->stages()->create([
+        $now = now();
+
+        $stage = $project->stages()->create([
             'stage_index'         => self::PARALLEL_INDEX,
             'is_parallel'         => true,
             'name'                => 'الوصول والحسابات',
@@ -136,8 +147,10 @@ final readonly class ProjectSeeder
             'their_duration_days' => 10,
             'status'              => StageStatus::Active,
             'ball_in_court'       => Side::Them,
-            'started_at'          => now(),
+            'started_at'          => $now,
         ]);
+
+        $stage->update(['due_at' => $this->clock->dueFrom($stage, Side::Them, $now)]);
     }
 
     private function seedAccessItems(Project $project, array $details): void

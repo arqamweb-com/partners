@@ -21,7 +21,10 @@ use Illuminate\Validation\ValidationException;
  */
 final readonly class StagePlanEditor
 {
-    public function __construct(private AuditLogger $audit) {}
+    public function __construct(
+        private AuditLogger $audit,
+        private StageClock $clock,
+    ) {}
 
     /**
      * @param  list<array<string,mixed>>  $plan  المراحل بالترتيب المطلوب
@@ -73,6 +76,10 @@ final readonly class StagePlanEditor
 
                 if ($current) {
                     $current->update($values);
+
+                    // المدّة تغيّرت تحت مرحلة شغّالة، فموعدها القديم صار
+                    // محسوبًا على رقم لم يعد قائمًا
+                    $current->update(['due_at' => $this->clock->recompute($current->fresh())]);
                 } else {
                     $project->stages()->create([
                         ...$values,

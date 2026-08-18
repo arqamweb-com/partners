@@ -59,7 +59,9 @@ class ChangeRequestController extends Controller
                 new ChangeRequestCreated($cr->fresh(), $request->user()));
         }
 
-        return response()->json(['data' => $cr], 201);
+        // fresh() لا $cr: القيم الافتراضية (السعر، الحالة، العملة) تأتي من
+        // قاعدة البيانات، والنموذج المنشأ للتوّ لا يعرفها — فكان الرد ناقصًا
+        return response()->json(['data' => $cr->fresh()], 201);
     }
 
     /** التسعير والإرسال. */

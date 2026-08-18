@@ -10,12 +10,12 @@ import { Label } from "@/components/ui/label";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "تسجيل الدخول | أرقام فلو" },
+      { title: "تسجيل الدخول | أرقام ويب" },
       {
         name: "description",
         content: "الدخول إلى بوابة سير عمل مشاريع أرقام ويب للوكالات الشريكة.",
       },
-      { property: "og:title", content: "تسجيل الدخول | أرقام فلو" },
+      { property: "og:title", content: "تسجيل الدخول | أرقام ويب" },
       { property: "og:description", content: "بوابة داخلية لإدارة مراحل المشاريع واعتماداتها." },
     ],
   }),
@@ -75,7 +75,7 @@ function AuthPage() {
           <span className="gradient-primary flex size-10 items-center justify-center rounded-xl text-primary-foreground">
             <Workflow className="size-5" />
           </span>
-          <span className="font-display text-xl font-semibold">أرقام فلو</span>
+          <span className="font-display text-xl font-semibold">أرقام ويب</span>
         </div>
 
         <form onSubmit={submit} className="surface-card space-y-4 p-7">

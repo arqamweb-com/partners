@@ -17,12 +17,12 @@ import { Label } from "@/components/ui/label";
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
     meta: [
-      { title: "الإعدادات | أرقام فلو" },
+      { title: "الإعدادات | أرقام ويب" },
       {
         name: "description",
         content: "العطل الرسمية، المدد الافتراضية، قوائم أسعار التغييرات، وحدود التأخير.",
       },
-      { property: "og:title", content: "إعدادات أرقام فلو" },
+      { property: "og:title", content: "إعدادات أرقام ويب" },
       { property: "og:description", content: "ضبط قواعد العمل التي تسري على كل المشاريع." },
     ],
   }),

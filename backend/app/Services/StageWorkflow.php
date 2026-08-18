@@ -32,6 +32,7 @@ final readonly class StageWorkflow
     public function __construct(
         private AuditLogger $audit,
         private Notifier $notifier,
+        private StageClock $clock,
     ) {}
 
     /** تقديم المرحلة للطرف الآخر لمراجعتها. */
@@ -41,13 +42,18 @@ final readonly class StageWorkflow
         $note = Str::limit(trim($note), 4000, '');
 
         return DB::transaction(function () use ($stage, $actor, $party, $note) {
+            $now = Carbon::now();
+            $ball = $party->side()->other();
+
             $stage->update([
                 'status'           => StageStatus::AwaitingApproval,
-                'ball_in_court'    => $party->side()->other(),
-                'submitted_at'     => Carbon::now(),
+                'ball_in_court'    => $ball,
+                'submitted_at'     => $now,
                 'submitted_by'     => $actor->id,
                 'submission_note'  => $note,
                 'rejection_reason' => null,
+                // عدّاد المراجعة يبدأ الآن بمدّة المراجع، لا بما تبقّى من مدّتنا
+                'due_at'           => $this->clock->dueFrom($stage, $ball, $now),
             ]);
 
             $this->audit->log(
@@ -104,18 +110,23 @@ final readonly class StageWorkflow
                 'approved_at'          => $now,
             ]);
 
-            // المرحلة التالية تبدأ والكرة ترجع لفريق أرقام
+            // المرحلة التالية تبدأ والكرة ترجع لفريق أرقام.
+            // تُقرأ ثم تُحدَّث لا تُحدَّث بالجملة: موعد استحقاقها يُحسب من
+            // مدّتها هي، ولا سبيل لمعرفتها من استعلام أعمى.
             if (! $stage->is_parallel) {
-                Stage::query()
+                $next = Stage::query()
                     ->where('project_id', $stage->project_id)
                     ->where('stage_index', $stage->stage_index + 1)
                     ->where('is_parallel', false)
                     ->whereNull('locked_at')
-                    ->update([
-                        'status'        => StageStatus::Active->value,
-                        'started_at'    => $now,
-                        'ball_in_court' => Side::Us->value,
-                    ]);
+                    ->first();
+
+                $next?->update([
+                    'status'        => StageStatus::Active,
+                    'started_at'    => $now,
+                    'ball_in_court' => Side::Us,
+                    'due_at'        => $this->clock->dueFrom($next, Side::Us, $now),
+                ]);
             }
 
             $this->audit->log(
@@ -151,14 +162,19 @@ final readonly class StageWorkflow
         }
 
         return DB::transaction(function () use ($stage, $actor, $party, $reason) {
+            $now = Carbon::now();
+            $ball = $party->side()->other();
+
             $stage->update([
                 'status'           => StageStatus::Active,
-                'ball_in_court'    => $party->side()->other(),
+                'ball_in_court'    => $ball,
                 'rejection_reason' => Str::limit($reason, 4000, ''),
-                'rejected_at'      => Carbon::now(),
+                'rejected_at'      => $now,
                 'rejected_by'      => $actor->id,
                 'rejection_count'  => $stage->rejection_count + 1,
                 'submitted_at'     => null,
+                // العدّاد يبدأ من أول جديد: المرحلة عادت لصاحبها كاملة
+                'due_at'           => $this->clock->dueFrom($stage, $ball, $now),
             ]);
 
             $this->audit->log(

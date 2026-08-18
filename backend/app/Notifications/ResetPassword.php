@@ -34,7 +34,7 @@ class ResetPassword extends Notification
         $minutes = config('auth.passwords.users.expire', 60);
 
         return (new MailMessage)
-            ->subject('استعادة كلمة المرور — أرقام فلو')
+            ->subject('استعادة كلمة المرور — أرقام ويب')
             ->greeting('أهلًا '.($notifiable->full_name ?: ''))
             ->line('وصلنا طلب لاستعادة كلمة مرور حسابك.')
             ->action('تعيين كلمة مرور جديدة', $this->resetUrl($notifiable))

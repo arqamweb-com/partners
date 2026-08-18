@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace App\Providers;
 
 use App\Models;
+use App\Notifications\Channels\ProjectDatabaseChannel;
 use App\Policies;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Notifications\ChannelManager;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -33,6 +37,14 @@ class AppServiceProvider extends ServiceProvider
             Gate::policy($model, $policy);
         }
 
+        /*
+         * الإشعار داخل التطبيق يُكتب بقناتنا لا بقناة لارافيل الافتراضية،
+         * لتحمل معه معرّف مشروعه في عمود مستقل. انظر ProjectDatabaseChannel.
+         */
+        $this->app->resolving(ChannelManager::class, function (ChannelManager $manager) {
+            $manager->extend('database', fn () => new ProjectDatabaseChannel());
+        });
+
         // مسارات الـ API لا تُعيد توجيهًا أبدًا: مستخدم مسجَّل يطلب
         // /auth/register يستحق 403 بنص مفهوم، لا 302 إلى الصفحة الرئيسية
         // يفسّرها عميل JSON كنجاح غامض.
@@ -46,5 +58,21 @@ class AppServiceProvider extends ServiceProvider
 
         // الأدمن ليس فوق كل شيء: اعتمادات البوابات وسجل التدقيق لا تُعدَّل
         // ولا تُحذف من أحد إطلاقًا، فلا نضع Gate::before يتخطى السياسات.
+
+        /*
+         * سقف عام على الـ API.
+         *
+         * الدخول واستعادة كلمة المرور مكبوحان في مكانهما بحدود ضيقة، لأن
+         * تخمين كلمة مرور فعل واحد يُعاد. هذا السقف لغرض آخر: ألا يستنزف
+         * حساب واحد — أو سكربت بجلسة مسروقة — السيرفر برفع ملفات أو إنشاء
+         * مشاريع بلا حد. القياس بالمستخدم لا بالـ IP، فمكتب كامل خلف IP
+         * واحد لا يُعاقب بخطأ فردٍ فيه؛ ومن لم يسجّل بعد يُقاس بـ IP.
+         */
+        RateLimiter::for('api', fn (Request $request) => Limit::perMinute(120)
+            ->by($request->user()?->id ?: $request->ip())
+            ->response(fn () => response()->json(
+                ['message' => 'طلبات كتيرة في وقت قصير. استنى دقيقة وحاول تاني.'],
+                429,
+            )));
     }
 }

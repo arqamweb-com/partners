@@ -43,6 +43,9 @@ api/config.php
 host
 
 # لارافيل
+# ناتج بناء الواجهة يُنسخ إلى backend/public عند النشر — لا يُسجَّل
+backend/public/index.html
+backend/public/assets
 backend/vendor
 backend/node_modules
 backend/.env

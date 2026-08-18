@@ -20,7 +20,7 @@ export const Route = createFileRoute("/auth/reset")({
     email: typeof search["email"] === "string" ? search["email"] : "",
   }),
   head: () => ({
-    meta: [{ title: "تعيين كلمة مرور جديدة | أرقام فلو" }],
+    meta: [{ title: "تعيين كلمة مرور جديدة | أرقام ويب" }],
   }),
   component: ResetPasswordPage,
 });

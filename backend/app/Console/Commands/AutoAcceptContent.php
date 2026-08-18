@@ -36,6 +36,9 @@ class AutoAcceptContent extends Command
         $overdue = ContentItem::query()
             ->where('status', ContentStatus::Submitted)
             ->whereNotNull('submitted_at')
+            // بنود مشروع مؤرشف خارج الحساب: النطاق العام على المشروع
+            // يجعل علاقته null، ولا معنى لقبول تلقائي على مشروع مخفي
+            ->whereHas('project')
             ->with('project')
             ->get()
             ->filter(fn (ContentItem $item) => $businessDays

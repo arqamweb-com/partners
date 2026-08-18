@@ -14,12 +14,12 @@ import type { ChangeRequest, Project, Stage } from "@/lib/domain";
 export const Route = createFileRoute("/_authenticated/reports")({
   head: () => ({
     meta: [
-      { title: "التقرير الشهري | أرقام فلو" },
+      { title: "التقرير الشهري | أرقام ويب" },
       {
         name: "description",
         content: "تقرير أداء الوكالات الشريكة: الالتزام بالمواعيد، التأخير، وطلبات التغيير.",
       },
-      { property: "og:title", content: "التقرير الشهري للوكالات | أرقام فلو" },
+      { property: "og:title", content: "التقرير الشهري للوكالات | أرقام ويب" },
       { property: "og:description", content: "أرقام موضوعية بدل الانطباعات في نقاش الالتزام." },
     ],
   }),

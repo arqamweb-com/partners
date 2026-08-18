@@ -31,13 +31,21 @@ final readonly class ProjectParty
 {
     public function __construct(
         public User $user,
-        public Project $project,
+        public ?Project $project,
         public ?ProjectRole $role,
     ) {}
 
-    public static function for(User $user, Project $project): self
+    /**
+     * المشروع قد يكون null، ومعناه واحد: مؤرشف.
+     *
+     * الأعمال التابعة — مرحلة، بند محتوى، طلب تغيير — لا تُؤرشف مع
+     * مشروعها ولا تختفي، فطلب مباشر بمعرّف أحدها بعد الأرشفة كان يصل
+     * إلى سياسته ومعه project = null. وكل السياسات تمر من هنا، فالجواب
+     * يُكتب هنا مرة واحدة: لا مشروع = لا دور = لا صلاحية.
+     */
+    public static function for(User $user, ?Project $project): self
     {
-        return new self($user, $project, $user->roleOn($project));
+        return new self($user, $project, $project ? $user->roleOn($project) : null);
     }
 
     /** لا دور = لا وصول أصلًا. */
@@ -82,7 +90,7 @@ final readonly class ProjectParty
             return false;
         }
 
-        $top = $this->project->approvers()->first();
+        $top = $this->project?->approvers()->first();
 
         // لا معتمِد مسجَّل بعد: أي طرف مستلِم يقدر يعتمد
         if ($top === null) {

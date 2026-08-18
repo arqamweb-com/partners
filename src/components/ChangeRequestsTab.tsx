@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Check, FileSignature, Plus, RotateCcw, Send, X } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  FileSignature,
+  Plus,
+  RotateCcw,
+  Send,
+  Wallet,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { useCurrentUser } from "@/hooks/useAuth";
@@ -13,7 +22,7 @@ import {
   type FeedbackItem,
   type Project,
 } from "@/lib/domain";
-import { addBusinessDays, formatDateAr } from "@/lib/business-days";
+import { addBusinessDays, addDays, formatDateAr, isoDate } from "@/lib/business-days";
 import { cn } from "@/lib/utils";
 import { Num } from "@/components/Num";
 import { EmptyState } from "@/components/EmptyState";
@@ -21,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { PriceChangeRequestDialog } from "@/components/PriceChangeRequestDialog";
 import {
   Dialog,
   DialogContent,
@@ -168,6 +178,8 @@ export function ChangeRequestsTab({
     onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "تعذّر تسجيل القرار."),
   });
 
+  const [pricing, setPricing] = useState<ChangeRequest | null>(null);
+
   const reprice = useMutation({
     // إعادة التقديم مرة واحدة فقط — يفرضها السيرفر
     mutationFn: (cr: ChangeRequest) =>
@@ -286,13 +298,31 @@ export function ChangeRequestsTab({
                   </p>
                 )}
 
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {/*
+                    طلب كتبه العميل يصل بلا سعر، فإرساله كما هو إرسال بصفر.
+                    التسعير نافذة قائمة بذاتها، والإرسال المباشر يبقى
+                    لمسودّة سعّرها فريق أرقام أصلًا عند إنشائها.
+                  */}
                   {me?.isAdmin && cr.status === "draft" && (
-                    <Button size="sm" onClick={() => sendCR.mutate(cr)}>
-                      <Send className="size-3.5" /> إرسال للعميل
-                    </Button>
+                    <>
+                      <Button size="sm" onClick={() => setPricing(cr)}>
+                        <Wallet className="size-3.5" /> تسعير وإرسال
+                      </Button>
+                      {!cr.requested_by && Number(cr.price) > 0 && (
+                        <Button size="sm" variant="secondary" onClick={() => sendCR.mutate(cr)}>
+                          <Send className="size-3.5" /> إرسال بالسعر المحفوظ
+                        </Button>
+                      )}
+                    </>
                   )}
-                  {cr.status === "sent" && !quoteExpired && (
+
+                  {/*
+                    القرار للعميل وحده. كان الزرّ يظهر للجميع، فيضغطه موظف
+                    من أرقام ويقابله منع من السيرفر — والسيرفر محق: من يدفع
+                    هو من يعتمد. الزرّ لا يُعرض لمن لا يملكه أصلًا.
+                  */}
+                  {cr.status === "sent" && !quoteExpired && !me?.isAdmin && (
                     <>
                       <Button size="sm" onClick={() => setConfirming({ cr, approve: true })}>
                         <Check className="size-3.5" /> اعتماد كتابي
@@ -305,6 +335,12 @@ export function ChangeRequestsTab({
                         <X className="size-3.5" /> رفض
                       </Button>
                     </>
+                  )}
+
+                  {cr.status === "sent" && me?.isAdmin && (
+                    <span className="text-xs text-muted-foreground">
+                      اتبعت للعميل — بانتظار اعتماده الكتابي.
+                    </span>
                   )}
                   {me?.isAdmin &&
                     (cr.status === "expired" ||
@@ -425,6 +461,13 @@ export function ChangeRequestsTab({
         </DialogContent>
       </Dialog>
 
+      <PriceChangeRequestDialog
+        cr={pricing}
+        open={pricing !== null}
+        onOpenChange={(v) => !v && setPricing(null)}
+        onPriced={invalidate}
+      />
+
       <AlertDialog open={!!confirming} onOpenChange={(v) => !v && setConfirming(null)}>
         <AlertDialogContent dir="rtl" className="text-start">
           <AlertDialogHeader className="text-start">
@@ -488,14 +531,4 @@ function NumField({
       />
     </div>
   );
-}
-
-function addDays(d: Date, n: number): Date {
-  const c = new Date(d);
-  c.setDate(c.getDate() + n);
-  return c;
-}
-
-function isoDate(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }

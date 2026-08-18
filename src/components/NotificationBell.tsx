@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Bell, CheckCheck } from "lucide-react";
 import { api, type AppNotification } from "@/lib/api";
+import { relativeAr } from "@/lib/business-days";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -21,20 +22,8 @@ import { cn } from "@/lib/utils";
 
 const POLL_MS = 30_000;
 
-/** «من دقيقتين»، «من 3 ساعات» — أقرب للقراءة من تاريخ كامل. */
-function relativeAr(iso: string): string {
-  const seconds = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
-
-  if (seconds < 60) return "الآن";
-  if (seconds < 3600) return `من ${Math.floor(seconds / 60)} دقيقة`;
-  if (seconds < 86400) return `من ${Math.floor(seconds / 3600)} ساعة`;
-  if (seconds < 604800) return `من ${Math.floor(seconds / 86400)} يوم`;
-
-  return new Date(iso).toLocaleDateString("ar-EG", {
-    day: "numeric",
-    month: "long",
-  });
-}
+/** الجرس نافذة على الأحدث لا أرشيف — الباقي في /notifications. */
+const BELL_SIZE = 8;
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
@@ -42,8 +31,8 @@ export function NotificationBell() {
   const navigate = useNavigate();
 
   const { data } = useQuery({
-    queryKey: ["notifications"],
-    queryFn: () => api.notifications.list(),
+    queryKey: ["notifications", { per_page: BELL_SIZE }],
+    queryFn: () => api.notifications.list({ per_page: BELL_SIZE }),
     refetchInterval: POLL_MS,
     // لا نستطلع ونحن في تبويب آخر — لا فائدة، وهو استهلاك بلا مقابل
     refetchIntervalInBackground: false,
@@ -58,6 +47,11 @@ export function NotificationBell() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
   });
 
+  const markRead = useMutation({
+    mutationFn: (id: string) => api.notifications.markRead(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["notifications"] }),
+  });
+
   function openNotification(item: AppNotification) {
     setOpen(false);
 
@@ -66,7 +60,9 @@ export function NotificationBell() {
       navigate({ to: item.data.url });
     }
 
-    if (unread > 0) markAllRead.mutate();
+    // المفتوح وحده يُعلَّم مقروءًا. كان الفتح يبتلع كل غير المقروء معه،
+    // فمن دخل ليقرأ إشعارًا خسر أثر ما لم يفتحه بعد.
+    if (!item.read_at) markRead.mutate(item.id);
   }
 
   return (
@@ -153,6 +149,16 @@ export function NotificationBell() {
             </ul>
           </ScrollArea>
         )}
+
+        <div className="border-t border-border px-4 py-2.5">
+          <Link
+            to="/notifications"
+            onClick={() => setOpen(false)}
+            className="block text-center text-xs font-medium text-primary hover:underline"
+          >
+            عرض كل الإشعارات
+          </Link>
+        </div>
       </PopoverContent>
     </Popover>
   );

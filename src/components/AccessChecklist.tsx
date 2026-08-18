@@ -58,7 +58,7 @@ export function AccessChecklist({
       {stage && (
         <div className="mt-4 grid gap-2 rounded-xl border border-border bg-surface-elevated p-3 text-xs">
           <Row label="الحالة" value={STAGE_STATUS_AR[stage.status] ?? stage.status} />
-          <Row label="الكرة عند" value={BALL_AR[stage.ball_in_court] ?? ""} />
+          <Row label="الكرة" value={BALL_AR[stage.ball_in_court] ?? ""} />
           <Row label="موعد الاستحقاق" value={formatDateAr(stage.due_at)} />
         </div>
       )}

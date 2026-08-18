@@ -84,7 +84,7 @@ const ROLES: { value: SystemRole; label: string; hint: string }[] = [
 export const Route = createFileRoute("/_authenticated/users")({
   head: () => ({
     meta: [
-      { title: "الحسابات والصلاحيات | أرقام فلو" },
+      { title: "الحسابات والصلاحيات | أرقام ويب" },
       {
         name: "description",
         content: "إضافة المستخدمين وتعديل بياناتهم وأدوارهم في النظام وإيقاف الحسابات.",

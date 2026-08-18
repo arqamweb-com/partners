@@ -74,6 +74,9 @@ export interface ProjectRow {
   frozen_at: IsoDateTime | null;
   created_at: IsoDateTime;
   updated_at: IsoDateTime;
+  /** مؤرشف — لا يظهر في أي شاشة إلا شاشة الأرشيف. */
+  deleted_at: IsoDateTime | null;
+  deleted_by: Uuid | null;
 }
 
 export interface ProjectMemberRow {

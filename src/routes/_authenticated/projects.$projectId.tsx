@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
+  Archive,
   ChevronRight,
   Info,
   Lock,
@@ -57,16 +58,17 @@ import { ContentChecklist } from "@/components/ContentChecklist";
 import { FeedbackTab } from "@/components/FeedbackTab";
 import { ChangeRequestsTab } from "@/components/ChangeRequestsTab";
 import { ReactivateDialog } from "@/components/ReactivateDialog";
+import { ArchiveProjectDialog } from "@/components/ArchiveProjectDialog";
 
 export const Route = createFileRoute("/_authenticated/projects/$projectId")({
   head: () => ({
     meta: [
-      { title: "تفاصيل المشروع | أرقام فلو" },
+      { title: "تفاصيل المشروع | أرقام ويب" },
       {
         name: "description",
         content: "مراحل المشروع، بوابات الاعتماد المقفولة، عدّاد التأخير وسجل التدقيق.",
       },
-      { property: "og:title", content: "تفاصيل المشروع | أرقام فلو" },
+      { property: "og:title", content: "تفاصيل المشروع | أرقام ويب" },
       { property: "og:description", content: "من عنده الكرة الآن، وكم كلّف التأخير." },
     ],
   }),
@@ -77,8 +79,10 @@ function ProjectDetail() {
   const { projectId } = Route.useParams();
   const { data: me } = useCurrentUser();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [gateStage, setGateStage] = useState<Stage | null>(null);
   const [reactivating, setReactivating] = useState(false);
+  const [archiving, setArchiving] = useState(false);
   const [tab, setTab] = useState("content");
   const [crSeed, setCrSeed] = useState<FeedbackItem | null>(null);
 
@@ -450,7 +454,44 @@ function ProjectDetail() {
         />
       )}
 
+      {/*
+        الأرشفة آخر ما في الصفحة وخلف حاجز، لا زرارًا بين أزرار الإجراءات:
+        فعل نادر ومكلف لا يجاور أفعالًا يومية.
+      */}
+      {me?.isSuperUser && (
+        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h3 className="flex items-center gap-2 font-display text-base font-semibold text-destructive">
+                <Archive className="size-4" />
+                أرشفة المشروع
+              </h3>
+              <p className="mt-1.5 max-w-xl text-sm leading-7 text-muted-foreground">
+                المشروع هيختفي من اللوحة والتقارير ومن كل من له علاقة به، وإشعاراته هتترفع معه. مفيش
+                حاجة بتتمسح: المراحل والاعتمادات وسجل التدقيق باقيين، وتقدر ترجّعه من{" "}
+                <Link to="/projects/archived" className="text-primary hover:underline">
+                  الأرشيف
+                </Link>
+                .
+              </p>
+            </div>
+
+            <Button variant="outline" onClick={() => setArchiving(true)}>
+              <Archive className="size-4" />
+              أرشفة
+            </Button>
+          </div>
+        </div>
+      )}
+
       <ReactivateDialog project={project} open={reactivating} onOpenChange={setReactivating} />
+
+      <ArchiveProjectDialog
+        project={project}
+        open={archiving}
+        onOpenChange={setArchiving}
+        onArchived={() => navigate({ to: "/dashboard" })}
+      />
     </div>
   );
 }

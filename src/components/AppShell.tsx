@@ -38,7 +38,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="gradient-primary flex size-9 items-center justify-center rounded-xl text-primary-foreground">
               <Workflow className="size-4.5" />
             </span>
-            <span className="font-display text-lg font-semibold">أرقام فلو</span>
+            <span className="font-display text-lg font-semibold">أرقام ويب</span>
           </Link>
 
           <nav className="order-3 flex w-full items-center gap-1 overflow-x-auto sm:order-none sm:w-auto">

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, ChevronLeft, Inbox, Snowflake, Timer, Users } from "lucide-react";
+import { AlertTriangle, Archive, ChevronLeft, Inbox, Snowflake, Timer, Users } from "lucide-react";
 import { api } from "@/lib/api";
 import { useCurrentUser } from "@/hooks/useAuth";
 import { useHolidays } from "@/hooks/useSettings";
@@ -22,12 +22,12 @@ import { StatusPill } from "@/components/StatusPill";
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({
     meta: [
-      { title: "لوحة المشاريع | أرقام فلو" },
+      { title: "لوحة المشاريع | أرقام ويب" },
       {
         name: "description",
         content: "نظرة واحدة على كل المشاريع: المرحلة الحالية، عند من الكرة، وأيام التأخير.",
       },
-      { property: "og:title", content: "لوحة المشاريع | أرقام فلو" },
+      { property: "og:title", content: "لوحة المشاريع | أرقام ويب" },
       {
         property: "og:description",
         content: "نظرة واحدة على كل المشاريع ومواعيد التسليم المعدّلة.",
@@ -109,15 +109,28 @@ function Dashboard() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="font-display text-2xl font-semibold">
-          {me?.isAdmin ? "لوحة المشاريع" : "مشاريعك"}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {me?.isAdmin
-            ? "كل مشروع، مرحلته الحالية، وعند من الكرة الآن."
-            : "المشاريع المسندة إليك ومواعيدها الحالية."}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-semibold">
+            {me?.isAdmin ? "لوحة المشاريع" : "مشاريعك"}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {me?.isAdmin
+              ? "كل مشروع، مرحلته الحالية، وعند من الكرة الآن."
+              : "المشاريع المسندة إليك ومواعيدها الحالية."}
+          </p>
+        </div>
+
+        {/* الأرشيف ليس بندًا في القائمة العلوية: يُزار نادرًا ومن اللوحة */}
+        {me?.isSuperUser && (
+          <Link
+            to="/projects/archived"
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <Archive className="size-4" />
+            الأرشيف
+          </Link>
+        )}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -153,7 +166,7 @@ function Dashboard() {
                   "المرحلة الحالية",
                   "الكرة عند مين",
                   "موعد الاستحقاق",
-                  "أيام التأخير",
+                  "أيام تأخير العميل",
                   "تاريخ التسليم المعدّل",
                   "الحالة",
                   "",
@@ -219,7 +232,7 @@ function Dashboard() {
                         "—"
                       )}
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-4 py-4 whitespace-nowrap">
                       {p.status === "draft" ? (
                         <Badge className="border-0 bg-warn/15 font-medium text-warn-foreground">
                           بانتظار المراجعة
@@ -237,12 +250,32 @@ function Dashboard() {
                                   : "bg-primary/12 text-primary",
                           )}
                         >
-                          {overdue ? "متأخر" : stages.length === 0 ? "—" : ballLabel(cur)}
+                          {/*
+                            الطرف وحده. كان التأخير يحلّ محلّ الاسم هنا، فيجيب
+                            العمود عن سؤال غير سؤاله — و«متأخر» بجانب «٠ يوم
+                            تأخير» في نفس الصف تقرأ تناقضًا وهي ليست كذلك:
+                            العدّاد للعميل، والتأخير قد يكون علينا. اللون وحده
+                            يكفي للتنبيه هنا، والمدة مكانها عمود الاستحقاق.
+                          */}
+                          {stages.length === 0 ? "—" : ballLabel(cur)}
                         </Badge>
                       )}
                     </td>
-                    <td className="px-4 py-4 whitespace-nowrap text-muted-foreground">
-                      {cur?.due_at ? formatDateAr(cur.due_at) : "—"}
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      {cur?.due_at ? (
+                        <span
+                          className={cn(overdue ? "text-destructive" : "text-muted-foreground")}
+                        >
+                          {formatDateAr(cur.due_at)}
+                          {overdue && (
+                            <span className="block text-xs font-medium">
+                              متأخرة <Num value={Math.abs(daysLeft ?? 0)} /> يوم عمل
+                            </span>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-4">
                       <span

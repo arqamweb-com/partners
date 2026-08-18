@@ -100,3 +100,38 @@ export function formatDateAr(value: string | Date | null | undefined): string {
     day: "numeric",
   }).format(d);
 }
+
+/**
+ * «من دقيقتين»، «من 3 ساعات» — أقرب للقراءة من تاريخ كامل في قائمة أحداث.
+ * ما تجاوز الأسبوع يعود تاريخًا: «من 40 يوم» لم تعد تفيد أحدًا.
+ */
+export function relativeAr(iso: string): string {
+  const seconds = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+
+  if (seconds < 60) return "الآن";
+  if (seconds < 3600) return `من ${Math.floor(seconds / 60)} دقيقة`;
+  if (seconds < 86400) return `من ${Math.floor(seconds / 3600)} ساعة`;
+  if (seconds < 604800) return `من ${Math.floor(seconds / 86400)} يوم`;
+
+  return new Date(iso).toLocaleDateString("ar-EG", { day: "numeric", month: "long" });
+}
+
+/** تاريخ + N يوم تقويمي (لا يوم عمل) — صلاحية العرض تُقاس بالتقويم. */
+export function addDays(date: Date, days: number): Date {
+  const next = new Date(date);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+/**
+ * YYYY-MM-DD بالتوقيت المحلي.
+ *
+ * لا toISOString(): هي تحوّل إلى UTC أولًا، فتاريخ مساء الرياض يعود
+ * بيوم الأمس.
+ */
+export function isoDate(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${date.getFullYear()}-${month}-${day}`;
+}

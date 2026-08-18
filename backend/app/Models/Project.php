@@ -11,10 +11,12 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Project extends Model
 {
     use HasUuid;
+    use SoftDeletes;
 
     protected $guarded = ['id'];
 
@@ -31,12 +33,25 @@ class Project extends Model
             'credit_expires_at'      => 'date',
             'reactivated_at'         => 'datetime',
             'frozen_at'              => 'datetime',
+            'delay_accrued_at'       => 'datetime',
         ];
     }
 
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'owner_id');
+    }
+
+    /**
+     * من أرشف المشروع.
+     *
+     * الاسم archivedBy لا deletedBy عمدًا: الأخير يُسلسَل إلى المفتاح
+     * deleted_by نفسه فيحجب العمود الذي يحمل المعرّف، فيصير الحقل مرة
+     * نصًا ومرة كائنًا حسب ما حُمّل.
+     */
+    public function archivedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
     }
 
     public function members(): HasMany
@@ -72,6 +87,12 @@ class Project extends Model
     public function auditLogs(): HasMany
     {
         return $this->hasMany(AuditLog::class)->latest('created_at');
+    }
+
+    /** المرفقات — لازمة عند الحذف النهائي لمسح الملفات من القرص. */
+    public function uploads(): HasMany
+    {
+        return $this->hasMany(Upload::class);
     }
 
     /**
